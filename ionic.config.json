@@ -1,0 +1,7 @@
+{
+  "name": "safelink",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}
