@@ -1,0 +1,22 @@
+:root {
+  /* Colour Palette */
+  --yellow-300: #FFE299;
+  --yellow-400: #ECBF69;
+  --yellow-500: #E6A937;
+  --yellow-600: #A97D40;
+  --yellow-700: #8C5200;
+
+  --grey-300: #F9F9F9;
+  --grey-400: #CACACA;
+  --grey-500: #868686;
+  --grey-600: #5D5D5D;
+  --grey-700: #272727;
+
+  --white: #FAFAFA;
+  --black: #0D0D0D;
+  --red-light: #FFAFA3;
+  --red-dark: #990000;
+  --green-light: #C7EEBF;
+  --green-dark: #196E21;
+}
+
