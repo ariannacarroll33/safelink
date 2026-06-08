@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --ion-font-family: 'Poppins', sans-serif;
+}
+
+caption-regular {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+caption-medium {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+body-medium {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+body-semibold {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+h6-regular {
+  font-size: 16px;
+  font-weight: 400;
+}
+
+h6-semibold {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+h5-medium {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+h5-semibold {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+h4-medium {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+h1-regular {
+  font-size: 32px;
+  font-weight: 400;
+}
+
+h1-semibold {
+  font-size: 32px;
+  font-weight: 600;
+}
