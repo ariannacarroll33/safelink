@@ -1,12 +1,11 @@
 import React from 'react';
 import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/react';
-import './Home.css';
 
-const HomePage = () => (
+const MapsPage = () => (
   <IonPage>
     <IonHeader>
       <IonToolbar>
-        <IonTitle>Home</IonTitle>
+        <IonTitle>Maps</IonTitle>
       </IonToolbar>
     </IonHeader>
     <IonContent>
@@ -18,10 +17,11 @@ const HomePage = () => (
           height: '100%',
         }}
       >
-        Home content
+        Maps content
       </div>
     </IonContent>
   </IonPage>
 );
 
-export default HomePage;
+
+export default MapsPage;
