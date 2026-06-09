@@ -20,3 +20,15 @@
   --green-dark: #196E21;
 }
 
+/* Applying default colours to components */
+
+:root {
+  --ion-color-primary: var(--yellow-500);    
+  --ion-background-color: var(--yellow-300);     
+  --ion-text-color: var(--black);          
+  --ion-border-color: var(--black);    
+  --ion-tab-bar-background: var(--white);  
+  --ion-toolbar-background: var(--white);   
+  --ion-toolbar-color: var(--black);       
+  --ion-item-background: var(--white);      
+}
