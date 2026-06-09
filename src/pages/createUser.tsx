@@ -39,7 +39,7 @@ const CreateUser: React.FC = () => {
         <div style={{ textAlign: 'center', margin: '40px 0' }}>
           <IonIcon icon={shieldCheckmarkOutline} style={{ fontSize: '64px', color: 'var(--ion-color-primary)' }} />
           <h1 style={{ fontWeight: '700', fontSize: '28px', marginTop: '10px' }}>Create your User</h1>
-          <p style={{ color: '#666' }}>Secure your family circle in seconds.</p>
+          <p style={{ color: '#666' }}>Set up this quickly!.</p>
         </div>
 
         <form onSubmit={handleCreateUser}>
@@ -89,7 +89,7 @@ const CreateUser: React.FC = () => {
 
         <div style={{ textAlign: 'center', marginTop: '30px' }}>
           <IonText color="medium" style={{ fontSize: '14px' }}>
-            Part of a circle already? <a href="/login" style={{ fontWeight: 'bold', textDecoration: 'none' }}>Log In</a>
+            Ready? <a href="/login" style={{ fontWeight: 'bold', textDecoration: 'none' }}>Log In</a>
           </IonText>
         </div>
       </IonContent>
