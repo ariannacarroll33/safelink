@@ -5,7 +5,7 @@ const MapsPage = () => (
   <IonPage>
     <IonHeader>
       <IonToolbar>
-        <IonTitle>Maps</IonTitle>
+        <IonTitle class="ion-text-center">Maps</IonTitle>
       </IonToolbar>
     </IonHeader>
     <IonContent>

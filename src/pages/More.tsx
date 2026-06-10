@@ -5,7 +5,7 @@ const MorePage = () => (
   <IonPage>
     <IonHeader>
       <IonToolbar>
-        <IonTitle>More</IonTitle>
+        <IonTitle class="ion-text-center">More</IonTitle>
       </IonToolbar>
     </IonHeader>
     <IonContent>
