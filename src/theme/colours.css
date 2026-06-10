@@ -31,4 +31,5 @@
   --ion-toolbar-background: var(--white);   
   --ion-toolbar-color: var(--black);       
   --ion-item-background: var(--white);      
+--ion-tab-bar-color-selected: var(--yellow-500);  /* selected icon */
 }

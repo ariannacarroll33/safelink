@@ -6,7 +6,7 @@ const HomePage = () => (
   <IonPage>
     <IonHeader>
       <IonToolbar>
-        <IonTitle>Home</IonTitle>
+        <IonTitle class="ion-text-center">Home</IonTitle>
       </IonToolbar>
     </IonHeader>
     <IonContent>

@@ -5,7 +5,7 @@ const YourLinkPage = () => (
   <IonPage>
     <IonHeader>
       <IonToolbar>
-        <IonTitle>Your Link</IonTitle>
+        <IonTitle class="ion-text-center">Your Link</IonTitle>
       </IonToolbar>
     </IonHeader>
     <IonContent>
