@@ -1,100 +1,236 @@
 import React, { useState } from 'react';
-import { 
-  IonContent, 
-  IonHeader, 
-  IonPage, 
-  IonTitle, 
-  IonToolbar, 
-  IonItem, 
-  IonLabel, 
-  IonInput, 
-  IonButton, 
+import {
+  IonContent,
+  IonPage,
+  IonInput,
+  IonButton,
   IonIcon,
   IonText,
-  IonNote
+  IonNote,
+  IonToast,
+  IonItem
 } from '@ionic/react';
-import { personAddOutline, mailOutline, lockClosedOutline, shieldCheckmarkOutline } from 'ionicons/icons';
+
+import {
+  personAddOutline,
+  mailOutline,
+  lockClosedOutline,
+  eyeOutline,
+  eyeOffOutline
+} from 'ionicons/icons';
+
+import { useHistory } from 'react-router-dom';
 
 const CreateUser: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const history = useHistory();
+
+  const requiredAsterisk = (
+    <span style={{ color: '#E6A937', marginLeft: '4px' }}>*</span>
+  );
 
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('SafeLink - Registering new user:', { name, email });
-    // Aquí conectarás con vuestro backend o Firebase
-    alert(`Success! SafeLink profile created for ${name}.`);
+
+    // conditionals to fill everything * 
+    if (!name || !email || !phone || !password || !confirmPassword) {
+      setToastMessage('Please fill in all required fields.');
+      setShowToast(true);
+      return;
+    }
+
+    // confirm same passowrd is entered
+    if (password !== confirmPassword) {
+      setToastMessage('Passwords do not match.');
+      setShowToast(true);
+      return;
+    }
+  history.push('/verificationCode', { phone });
   };
 
   return (
     <IonPage>
-      <IonHeader className="ion-no-border">
-        <IonToolbar color="primary">
-          <IonTitle>SafeLink Setup</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-
       <IonContent className="ion-padding">
-        <div style={{ textAlign: 'center', margin: '40px 0' }}>
-          <IonIcon icon={shieldCheckmarkOutline} style={{ fontSize: '64px', color: 'var(--ion-color-primary)' }} />
-          <h1 style={{ fontWeight: '700', fontSize: '28px', marginTop: '10px' }}>Create your User</h1>
-          <p style={{ color: '#666' }}>Set up this quickly!.</p>
+
+        <IonToast
+          isOpen={showToast}
+          onDidDismiss={() => setShowToast(false)}
+          message={toastMessage}
+          duration={3000}
+          position="bottom"
+        />
+
+        {/* HEADER */}
+        <div style={{ textAlign: 'center', margin: '40px 0 25px 0' }}>
+          <h1 style={{ fontSize: '26px', fontWeight: '700' }}>
+            Create your User
+          </h1>
         </div>
 
-        <form onSubmit={handleCreateUser}>
-          <IonItem lines="inset" className="ion-margin-bottom">
-            <IonIcon slot="start" icon={personAddOutline} color="medium" />
-            <IonLabel position="floating">Full Name</IonLabel>
-            <IonInput 
-              placeholder="e.g. Laura Valia"
-              value={name} 
-              onIonInput={(e) => setName(e.detail.value!)} 
-              required 
-            />
-          </IonItem>
+        <form onSubmit={handleCreateUser} style={{ padding: '0 10px' }}>
 
-          <IonItem lines="inset" className="ion-margin-bottom">
-            <IonIcon slot="start" icon={mailOutline} color="medium" />
-            <IonLabel position="floating">Email Address</IonLabel>
-            <IonInput 
-              type="email" 
-              placeholder="name@example.com"
-              value={email} 
-              onIonInput={(e) => setEmail(e.detail.value!)} 
-              required 
-            />
-          </IonItem>
+          {/* NAME */}
+          <div style={{ marginBottom: '14px' }}>
+            <div style={{ fontSize: '17px', fontWeight: '700', color: '#000' }}>
+              Full Name {requiredAsterisk}
+            </div>
 
-          <IonItem lines="inset" className="ion-margin-bottom">
-            <IonIcon slot="start" icon={lockClosedOutline} color="medium" />
-            <IonLabel position="floating">Create Password</IonLabel>
-            <IonInput 
-              type="password" 
-              value={password} 
-              onIonInput={(e) => setPassword(e.detail.value!)} 
-              required 
-            />
-          </IonItem>
-          <IonNote className="ion-padding-start" style={{ fontSize: '12px' }}>
+            <div style={boxStyle}>
+              <IonItem lines="none" style={itemStyle}>
+                <IonIcon slot="start" icon={personAddOutline} />
+                <IonInput
+                  value={name}
+                  onIonInput={(e) => setName(e.detail.value!)}
+                  placeholder="e.g. Betty Higgs"
+                />
+              </IonItem>
+            </div>
+          </div>
+
+          {/* EMAIL */}
+          <div style={{ marginBottom: '14px' }}>
+            <div style={labelStyle}>
+              Email Address {requiredAsterisk}
+            </div>
+
+            <div style={boxStyle}>
+              <IonItem lines="none" style={itemStyle}>
+                <IonIcon slot="start" icon={mailOutline} />
+                <IonInput
+                  type="email"
+                  value={email}
+                  onIonInput={(e) => setEmail(e.detail.value!)}
+                  placeholder="name@example.com"
+                />
+              </IonItem>
+            </div>
+          </div>
+
+          {/* PHONE */}
+          <div style={{ marginBottom: '14px' }}>
+            <div style={labelStyle}>
+              Mobile Phone {requiredAsterisk}
+            </div>
+
+            <div style={boxStyle}>
+              <IonItem lines="none" style={itemStyle}>
+                <IonIcon slot="start" icon={personAddOutline} />
+                <IonInput
+                  type="tel"
+                  value={phone}
+                  onIonInput={(e) => setPhone(e.detail.value!)}
+                  placeholder="+34 600 000 000"
+                />
+              </IonItem>
+            </div>
+          </div>
+
+          {/* PASSWORD */}
+          <div style={{ marginBottom: '14px' }}>
+            <div style={labelStyle}>
+              Create Password {requiredAsterisk}
+            </div>
+
+            <div style={boxStyle}>
+              <IonItem lines="none" style={itemStyle}>
+                <IonIcon slot="start" icon={lockClosedOutline} />
+
+                <IonInput
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onIonInput={(e) => setPassword(e.detail.value!)}
+                />
+
+                <IonIcon
+                  slot="end"
+                  icon={showPassword ? eyeOutline : eyeOffOutline}
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ cursor: 'pointer' }}
+                />
+              </IonItem>
+            </div>
+          </div>
+
+          <IonNote style={{ fontSize: '11px', color: '#777' }}>
             Must be at least 8 characters long.
           </IonNote>
 
-          <div style={{ marginTop: '50px' }}>
-            <IonButton expand="block" type="submit" shape="round" color="primary">
-              Initialize Profile
-            </IonButton>
+          {/* CONFIRM PASSWORD */}
+          <div style={{ marginTop: '14px', marginBottom: '20px' }}>
+            <div style={labelStyle}>
+              Confirm Password {requiredAsterisk}
+            </div>
+
+            <div style={boxStyle}>
+              <IonItem lines="none" style={itemStyle}>
+                <IonIcon slot="start" icon={lockClosedOutline} />
+
+                <IonInput
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onIonInput={(e) => setConfirmPassword(e.detail.value!)}
+                />
+
+                <IonIcon
+                  slot="end"
+                  icon={showConfirmPassword ? eyeOutline : eyeOffOutline}
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  style={{ cursor: 'pointer' }}
+                />
+              </IonItem>
+            </div>
           </div>
+
+          {/* BUTTON */}
+          <IonButton
+            expand="block"
+            type="submit"
+            style={{
+              '--background': '#E6A937',
+              '--border-radius': '25px',
+              height: '46px',
+              fontWeight: 'bold'
+            }}
+          >
+            Sign In
+          </IonButton>
+
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '30px' }}>
-          <IonText color="medium" style={{ fontSize: '14px' }}>
-            Ready? <a href="/login" style={{ fontWeight: 'bold', textDecoration: 'none' }}>Log In</a>
-          </IonText>
-        </div>
       </IonContent>
     </IonPage>
   );
+};
+
+/* STYLES */
+const boxStyle: React.CSSProperties = {
+  background: '#f4f5f8',
+  borderRadius: '20px',
+  border: '1px solid #e0e0e0',
+  padding: '2px 14px'
+};
+
+const itemStyle: React.CSSProperties = {
+  '--background': 'transparent',
+  '--min-height': 'unset'
+} as any;
+
+const labelStyle: React.CSSProperties = {
+  fontSize: '17px',
+  fontWeight: 700,
+  color: '#000',
+  marginBottom: '6px'
 };
 
 export default CreateUser;

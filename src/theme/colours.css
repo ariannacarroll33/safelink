@@ -1,6 +1,6 @@
 :root {
   /* Colour Palette */
-  --yellow-300: #99ffd6;
+  --yellow-300: #ffda99;
   --yellow-400: #ECBF69;
   --yellow-500: #E6A937;
   --yellow-600: #A97D40;
@@ -20,3 +20,15 @@
   --green-dark: #196E21;
 }
 
+/* Applying default colours to components */
+
+:root {
+  --ion-color-primary: var(--yellow-500);    
+  --ion-background-color: var(--yellow-300);     
+  --ion-text-color: var(--black);          
+  --ion-border-color: var(--black);    
+  --ion-tab-bar-background: var(--white);  
+  --ion-toolbar-background: var(--white);   
+  --ion-toolbar-color: var(--black);       
+  --ion-item-background: var(--white);      
+}

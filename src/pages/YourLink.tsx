@@ -1,12 +1,11 @@
 import React from 'react';
 import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/react';
-import './Home.css';
 
-const HomePage = () => (
+const YourLinkPage = () => (
   <IonPage>
     <IonHeader>
       <IonToolbar>
-        <IonTitle>Home</IonTitle>
+        <IonTitle>Your Link</IonTitle>
       </IonToolbar>
     </IonHeader>
     <IonContent>
@@ -18,10 +17,11 @@ const HomePage = () => (
           height: '100%',
         }}
       >
-        Home content
+        Your Link content
       </div>
     </IonContent>
   </IonPage>
 );
 
-export default HomePage;
+
+export default YourLinkPage;
