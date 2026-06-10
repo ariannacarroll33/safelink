@@ -1,6 +1,6 @@
 import React from 'react';
 import { Redirect, Route } from 'react-router-dom';
-import { IonApp, IonRouterOutlet, setupIonicReact} from '@ionic/react';
+import { IonApp, IonRouterOutlet, setupIonicReact } from '@ionic/react';
 import { IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import { homeOutline, mapOutline, linkOutline, ellipsisHorizontalOutline } from 'ionicons/icons'; /*navbar icons*/
@@ -10,6 +10,8 @@ import HomePage from './pages/Home';
 import MapsPage from './pages/Maps';
 import YourLinkPage from './pages/YourLink';
 import MorePage from './pages/More';
+import NotificationsPage from './pages/Notifications';
+
 
 import './theme/colours.css';
 import './theme/typography.css';
@@ -49,45 +51,37 @@ setupIonicReact();
 function App() {
   return (
     <IonApp>
-    <IonReactRouter>
-      <IonTabs>
-        <IonRouterOutlet>
-          <Redirect exact path="/" to="/home" />
-          {/*
-          Use the render method to reduce the number of renders your component will have due to a route change.
-
-          Use the component prop when your component depends on the RouterComponentProps passed in automatically.
-        */}
-          <Route path="/home" render={() => <HomePage />} exact={true} />
-          <Route path="/maps" render={() => <MapsPage />} exact={true} />
-          <Route path="/yourlink" render={() => <YourLinkPage />} exact={true} />
-          <Route path="/more" render={() => <MorePage />} exact={true} />
-        </IonRouterOutlet>
-
-        <IonTabBar slot="bottom">
-          <IonTabButton tab="home" href="/home">
-            <IonIcon icon={homeOutline} />
-            <IonLabel>Home</IonLabel>
-          </IonTabButton>
-
-          <IonTabButton tab="maps" href="/maps">
-            <IonIcon icon={mapOutline} />
-            <IonLabel>Maps</IonLabel>
-          </IonTabButton>
-
-          <IonTabButton tab="yourlink" href="/yourlink">
-            <IonIcon icon={linkOutline} />
-            <IonLabel>Your Link</IonLabel>
-          </IonTabButton>
-
-          <IonTabButton tab="more" href="/more">
-            <IonIcon icon={ellipsisHorizontalOutline} />
-            <IonLabel>More</IonLabel>
-          </IonTabButton>
-        </IonTabBar>
-      </IonTabs>
-    </IonReactRouter>
-  </IonApp>
+      <IonReactRouter>
+        <IonTabs>
+          <IonRouterOutlet>
+            <Route path="/home" render={() => <HomePage />} exact={true} />
+            <Route path="/maps" render={() => <MapsPage />} exact={true} />
+            <Route path="/yourlink" render={() => <YourLinkPage />} exact={true} />
+            <Route path="/more" render={() => <MorePage />} exact={true} />
+            <Route path="/notifications" render={() => <NotificationsPage />} exact={true} />
+            <Route exact path="/" render={() => <Redirect to="/home" />} />
+          </IonRouterOutlet>
+          <IonTabBar slot="bottom">
+            <IonTabButton tab="home" href="/home">
+              <IonIcon icon={homeOutline} />
+              <IonLabel>Home</IonLabel>
+            </IonTabButton>
+            <IonTabButton tab="maps" href="/maps">
+              <IonIcon icon={mapOutline} />
+              <IonLabel>Maps</IonLabel>
+            </IonTabButton>
+            <IonTabButton tab="yourlink" href="/yourlink">
+              <IonIcon icon={linkOutline} />
+              <IonLabel>Your Link</IonLabel>
+            </IonTabButton>
+            <IonTabButton tab="more" href="/more">
+              <IonIcon icon={ellipsisHorizontalOutline} />
+              <IonLabel>More</IonLabel>
+            </IonTabButton>
+          </IonTabBar>
+        </IonTabs>
+      </IonReactRouter>
+    </IonApp>
   );
 }
 
