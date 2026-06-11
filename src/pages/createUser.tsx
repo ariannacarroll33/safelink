@@ -5,10 +5,11 @@ import {
   IonInput,
   IonButton,
   IonIcon,
-  IonText,
   IonNote,
   IonToast,
-  IonItem
+  IonItem,
+  IonHeader,
+  IonToolbar
 } from '@ionic/react';
 
 import {
@@ -16,7 +17,8 @@ import {
   mailOutline,
   lockClosedOutline,
   eyeOutline,
-  eyeOffOutline
+  eyeOffOutline,
+  arrowBackOutline
 } from 'ionicons/icons';
 
 import { useHistory } from 'react-router-dom';
@@ -43,25 +45,41 @@ const CreateUser: React.FC = () => {
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // conditionals to fill everything * 
     if (!name || !email || !phone || !password || !confirmPassword) {
       setToastMessage('Please fill in all required fields.');
       setShowToast(true);
       return;
     }
 
-    // confirm same passowrd is entered
     if (password !== confirmPassword) {
       setToastMessage('Passwords do not match.');
       setShowToast(true);
       return;
     }
-  history.push('/verificationCode', { phone });
+
+    history.push('/verificationCode', { phone });
   };
 
   return (
     <IonPage>
-      <IonContent className="ion-padding">
+      {/* 🛠️ SOLUCIÓN: Usamos IonHeader e IonToolbar nativos de Ionic */}
+      <IonHeader className="ion-no-border">
+        <IonToolbar style={headerToolbarStyle}>
+          <div style={headerFlexContainer}>
+            <button 
+              onClick={() => history.goBack()} 
+              style={backButtonStyle}
+              type="button"
+            >
+              <IonIcon icon={arrowBackOutline} style={{ color: '#FFFFFF', fontSize: '24px' }} />
+            </button>
+            <h1 style={headerTitleStyle}>Create Account</h1>
+            <div style={{ width: '40px' }} /> {/* Espaciador */}
+          </div>
+        </IonToolbar>
+      </IonHeader>
+
+      <IonContent className="ion-padding" style={contentBackgroundStyle}>
 
         <IonToast
           isOpen={showToast}
@@ -71,24 +89,24 @@ const CreateUser: React.FC = () => {
           position="bottom"
         />
 
-        {/* HEADER */}
-        <div style={{ textAlign: 'center', margin: '40px 0 25px 0' }}>
-          <h1 style={{ fontSize: '26px', fontWeight: '700' }}>
+        {/* SUBHEADER */}
+        <div style={{ textAlign: 'center', margin: '30px 0 25px 0' }}>
+          <h1 style={{ fontSize: '26px', fontWeight: '700', color: '#633A0E' }}>
             Create your User
           </h1>
         </div>
 
-        <form onSubmit={handleCreateUser} style={{ padding: '0 10px' }}>
+        <form onSubmit={handleCreateUser} style={{ padding: '0 10px', paddingBottom: '30px' }}>
 
           {/* NAME */}
           <div style={{ marginBottom: '14px' }}>
-            <div style={{ fontSize: '17px', fontWeight: '700', color: '#000' }}>
+            <div style={labelStyle}>
               Full Name {requiredAsterisk}
             </div>
 
             <div style={boxStyle}>
               <IonItem lines="none" style={itemStyle}>
-                <IonIcon slot="start" icon={personAddOutline} />
+                <IonIcon slot="start" icon={personAddOutline} style={{ color: '#999' }} />
                 <IonInput
                   value={name}
                   onIonInput={(e) => setName(e.detail.value!)}
@@ -106,7 +124,7 @@ const CreateUser: React.FC = () => {
 
             <div style={boxStyle}>
               <IonItem lines="none" style={itemStyle}>
-                <IonIcon slot="start" icon={mailOutline} />
+                <IonIcon slot="start" icon={mailOutline} style={{ color: '#999' }} />
                 <IonInput
                   type="email"
                   value={email}
@@ -125,7 +143,7 @@ const CreateUser: React.FC = () => {
 
             <div style={boxStyle}>
               <IonItem lines="none" style={itemStyle}>
-                <IonIcon slot="start" icon={personAddOutline} />
+                <IonIcon slot="start" icon={personAddOutline} style={{ color: '#999' }} />
                 <IonInput
                   type="tel"
                   value={phone}
@@ -144,7 +162,7 @@ const CreateUser: React.FC = () => {
 
             <div style={boxStyle}>
               <IonItem lines="none" style={itemStyle}>
-                <IonIcon slot="start" icon={lockClosedOutline} />
+                <IonIcon slot="start" icon={lockClosedOutline} style={{ color: '#999' }} />
 
                 <IonInput
                   type={showPassword ? "text" : "password"}
@@ -156,25 +174,25 @@ const CreateUser: React.FC = () => {
                   slot="end"
                   icon={showPassword ? eyeOutline : eyeOffOutline}
                   onClick={() => setShowPassword(!showPassword)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', color: '#666' }}
                 />
               </IonItem>
             </div>
           </div>
 
-          <IonNote style={{ fontSize: '11px', color: '#777' }}>
+          <IonNote style={{ fontSize: '12px', color: '#A05C1B', fontWeight: '500', display: 'block', marginTop: '4px' }}>
             Must be at least 8 characters long.
           </IonNote>
 
           {/* CONFIRM PASSWORD */}
-          <div style={{ marginTop: '14px', marginBottom: '20px' }}>
+          <div style={{ marginTop: '14px', marginBottom: '28px' }}>
             <div style={labelStyle}>
               Confirm Password {requiredAsterisk}
             </div>
 
             <div style={boxStyle}>
               <IonItem lines="none" style={itemStyle}>
-                <IonIcon slot="start" icon={lockClosedOutline} />
+                <IonIcon slot="start" icon={lockClosedOutline} style={{ color: '#999' }} />
 
                 <IonInput
                   type={showConfirmPassword ? "text" : "password"}
@@ -186,7 +204,7 @@ const CreateUser: React.FC = () => {
                   slot="end"
                   icon={showConfirmPassword ? eyeOutline : eyeOffOutline}
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', color: '#666' }}
                 />
               </IonItem>
             </div>
@@ -198,9 +216,11 @@ const CreateUser: React.FC = () => {
             type="submit"
             style={{
               '--background': '#E6A937',
+              '--color': '#FFFFFF',
               '--border-radius': '25px',
-              height: '46px',
-              fontWeight: 'bold'
+              height: '50px',
+              fontWeight: 'bold',
+              fontSize: '16px'
             }}
           >
             Sign In
@@ -214,12 +234,50 @@ const CreateUser: React.FC = () => {
 };
 
 /* STYLES */
-const boxStyle: React.CSSProperties = {
-  background: '#f4f5f8',
-  borderRadius: '20px',
-  border: '1px solid #e0e0e0',
-  padding: '2px 14px'
+const contentBackgroundStyle = {
+  '--background': '#FFEBB7' 
 };
+
+const headerToolbarStyle = {
+  '--background': '#E5A93C',
+  '--border-width': '0'
+};
+
+const headerFlexContainer: React.CSSProperties = {
+  height: '64px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '0 16px'
+};
+
+const backButtonStyle: React.CSSProperties = {
+  width: '40px',
+  height: '40px',
+  borderRadius: '50%',
+  backgroundColor: 'rgba(0, 0, 0, 0.2)',
+  border: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer'
+};
+
+const headerTitleStyle: React.CSSProperties = {
+  color: '#FFFFFF',
+  fontSize: '22px',
+  fontWeight: '700',
+  margin: 0
+};
+
+const boxStyle: React.CSSProperties = {
+  background: '#FFFFFF', 
+  '--background': '#FFFFFF',
+  borderRadius: '12px',
+  border: '1px solid #999999',
+  padding: '2px 14px',
+  marginTop: '6px'
+} as any;
 
 const itemStyle: React.CSSProperties = {
   '--background': 'transparent',
@@ -230,7 +288,7 @@ const labelStyle: React.CSSProperties = {
   fontSize: '17px',
   fontWeight: 700,
   color: '#000',
-  marginBottom: '6px'
+  marginBottom: '4px'
 };
 
 export default CreateUser;

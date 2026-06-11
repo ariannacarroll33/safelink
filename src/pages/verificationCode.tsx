@@ -38,7 +38,7 @@ const VerificationCode: React.FC = () => {
     const newCode = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedCode(newCode);
 
-    console.log("📩 SMS sent to:", phone);
+    console.log("SMS sent to:", phone);
     console.log("🔐 Code:", newCode);
 
     setResendDisabled(true);
@@ -154,7 +154,8 @@ const VerificationCode: React.FC = () => {
 
   return (
     <IonPage>
-      <IonContent className="ion-padding">
+      {/* Añadido tu estilo de fondo aquí directamente en el IonContent */}
+      <IonContent className="ion-padding" style={contentBackgroundStyle}>
 
         <IonToast
           isOpen={showToast}
@@ -264,6 +265,11 @@ const VerificationCode: React.FC = () => {
       </IonContent>
     </IonPage>
   );
+};
+
+/* STYLES */
+const contentBackgroundStyle = {
+  '--background': '#FFEBB7'
 };
 
 export default VerificationCode;

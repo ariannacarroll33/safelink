@@ -1,48 +1,20 @@
 import React from 'react';
 import { Redirect, Route } from 'react-router-dom';
-<<<<<<< HEAD
-import {
-  IonApp,
-  IonRouterOutlet,
-  setupIonicReact,
-  IonTabs,
-  IonTabBar,
-  IonTabButton,
-  IonIcon,
-  IonLabel
-} from '@ionic/react';
+import { IonApp, IonRouterOutlet, setupIonicReact, IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import {
-  homeOutline,
-  mapOutline,
-  linkOutline,
-  ellipsisHorizontalOutline
-} from 'ionicons/icons';
+import { homeOutline, mapOutline, linkOutline, ellipsisHorizontalOutline } from 'ionicons/icons';
 
-/* Pages */
+// Actual existing pages
 import Home from './pages/Home';
-import CreateUser from './pages/createUser';
-import MapsPage from './pages/Maps';
-import YourLinkPage from './pages/YourLink';
-import MorePage from './pages/More';
+import CreateUser from './pages/createUser'; 
+import MapsPage from './pages/Maps';      
+import YourLinkPage from './pages/YourLink'; 
+import MorePage from './pages/More';  
 import VerificationCode from './pages/verificationCode';
+import EmergencyContact from './pages/emergencyContact';
+import Welcome from './pages/Welcome';
 
-/* Styles */
-=======
-import { IonApp, IonRouterOutlet, setupIonicReact } from '@ionic/react';
-import { IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel } from '@ionic/react';
-import { IonReactRouter } from '@ionic/react-router';
-import { homeOutline, mapOutline, linkOutline, ellipsisHorizontalOutline } from 'ionicons/icons'; /*navbar icons*/
-
-
-import HomePage from './pages/Home';
-import MapsPage from './pages/Maps';
-import YourLinkPage from './pages/YourLink';
-import MorePage from './pages/More';
-import NotificationsPage from './pages/Notifications';
-
-
->>>>>>> 1c3ce5dc39c4e3200a581da951bfdfa2d32e91a3
+/* App styles & layout */
 import './theme/colours.css';
 import './theme/typography.css';
 import '@ionic/react/css/core.css';
@@ -63,115 +35,84 @@ setupIonicReact();
 function App() {
   return (
     <IonApp>
-      <IonReactRouter>
-        <IonTabs>
-<<<<<<< HEAD
-=======
-          <IonRouterOutlet>
-            <Route path="/home" render={() => <HomePage />} exact={true} />
-            <Route path="/maps" render={() => <MapsPage />} exact={true} />
-            <Route path="/yourlink" render={() => <YourLinkPage />} exact={true} />
-            <Route path="/more" render={() => <MorePage />} exact={true} />
-            <Route path="/notifications" render={() => <NotificationsPage />} exact={true} />
-            <Route exact path="/" render={() => <Redirect to="/home" />} />
-          </IonRouterOutlet>
-          <IonTabBar slot="bottom">
-            <IonTabButton tab="home" href="/home">
-              <IonIcon icon={homeOutline} />
-              <IonLabel>Home</IonLabel>
-            </IonTabButton>
-            <IonTabButton tab="maps" href="/maps">
-              <IonIcon icon={mapOutline} />
-              <IonLabel>Maps</IonLabel>
-            </IonTabButton>
-            <IonTabButton tab="yourlink" href="/yourlink">
-              <IonIcon icon={linkOutline} />
-              <IonLabel>Your Link</IonLabel>
-            </IonTabButton>
-            <IonTabButton tab="more" href="/more">
-              <IonIcon icon={ellipsisHorizontalOutline} />
-              <IonLabel>More</IonLabel>
-            </IonTabButton>
-          </IonTabBar>
-        </IonTabs>
-      </IonReactRouter>
-    </IonApp>
-  );
-}
->>>>>>> 1c3ce5dc39c4e3200a581da951bfdfa2d32e91a3
+      <IonReactRouter> 
+        {/* Usamos un IonRouterOutlet principal para las páginas limpias sin menú inferior */}
+        <IonRouterOutlet>
+          
+          {/* 1. RUTA INICIAL: Carga la página de bienvenida de SafeLink */}
+          <Route exact path="/">
+            <Welcome />
+          </Route> 
 
-          <IonRouterOutlet>
+          <Route exact path="/welcome">
+            <Welcome />
+          </Route>
 
-            {/* ROOT */}
-            <Redirect exact path="/" to="/register" />
+          {/* 2. RUTAS DE REGISTRO Y FLUJO INICIAL (Fuera de los Tabs para que no hereden fondos raros) */}
+          <Route path="/register" exact={true}>
+            <CreateUser />
+          </Route>
 
-            {/* REGISTER */}
-            <Route path="/register" exact={true}>
-              <CreateUser />
-            </Route>
+          <Route path="/verificationCode" exact={true}> 
+            <VerificationCode />
+          </Route>
 
-            {/* VERIFICATION CODE */}
-            <Route path="/verificationCode" exact={true}>
-              <VerificationCode />
-            </Route>
+          <Route path="/emergencyContact" exact={true}> 
+            <EmergencyContact />
+          </Route>
 
-            {/* HOME */}
-            <Route path="/home" exact={true}>
-              <Home />
-            </Route>
+          {/* 3. SISTEMA DE TABS (Solo se activa cuando entramos a las páginas del menú) */}
+          <Route path="/tabs" render={() => (
+            <IonTabs>
+              <IonRouterOutlet>
+                <Route path="/tabs/home" exact={true}>
+                  <Home />
+                </Route>
+                <Route path="/tabs/maps" render={() => <MapsPage />} exact={true} />
+                <Route path="/tabs/yourlink" render={() => <YourLinkPage />} exact={true} />
+                <Route path="/tabs/more" render={() => <MorePage />} exact={true} /> 
+              </IonRouterOutlet>
 
-            {/* MAPS */}
-            <Route path="/maps" exact={true}>
-              <MapsPage />
-            </Route>
+              {/* Barra de navegación inferior limpia (solo aparece dentro de /tabs) */}
+              <IonTabBar slot="bottom">
+                <IonTabButton tab="home" href="/tabs/home">
+                  <IonIcon icon={homeOutline} />
+                  <IonLabel>Home</IonLabel>
+                </IonTabButton>
 
-            {/* YOUR LINK */}
-            <Route path="/yourlink" exact={true}>
-              <YourLinkPage />
-            </Route>
+                <IonTabButton tab="maps" href="/tabs/maps"> 
+                  <IonIcon icon={mapOutline} />
+                  <IonLabel>Maps</IonLabel>
+                </IonTabButton>
 
-            {/* MORE */}
-            <Route path="/more" exact={true}>
-              <MorePage />
-            </Route>
+                <IonTabButton tab="yourlink" href="/tabs/yourlink"> 
+                  <IonIcon icon={linkOutline} />
+                  <IonLabel>Your Link</IonLabel>
+                </IonTabButton>
 
-          </IonRouterOutlet>
+                <IonTabButton tab="more" href="/tabs/more"> 
+                  <IonIcon icon={ellipsisHorizontalOutline} />
+                  <IonLabel>More</IonLabel>
+                </IonTabButton>
+              </IonTabBar>
+            </IonTabs>
+          )} />
 
-          {/* TAB BAR (HIDDEN DURING SIGNUP FLOW) */}
-          <IonTabBar
-            slot="bottom"
-            className={
-              window.location.pathname === '/register' ||
-              window.location.pathname === '/' ||
-              window.location.pathname === '/verificationCode'
-                ? 'ion-hide'
-                : ''
-            }
-          >
+          {/* Redirecciones secundarias por si acaso */}
+          <Route exact path="/home">
+            <Redirect to="/tabs/home" />
+          </Route>
+          <Route exact path="/maps">
+            <Redirect to="/tabs/maps" />
+          </Route>
+          <Route exact path="/yourlink">
+            <Redirect to="/tabs/yourlink" />
+          </Route>
+          <Route exact path="/more">
+            <Redirect to="/tabs/more" />
+          </Route>
 
-            <IonTabButton tab="home" href="/home">
-              <IonIcon icon={homeOutline} />
-              <IonLabel>Home</IonLabel>
-            </IonTabButton>
-
-            <IonTabButton tab="maps" href="/maps">
-              <IonIcon icon={mapOutline} />
-              <IonLabel>Maps</IonLabel>
-            </IonTabButton>
-
-            <IonTabButton tab="yourlink" href="/yourlink">
-              <IonIcon icon={linkOutline} />
-              <IonLabel>Your Link</IonLabel>
-            </IonTabButton>
-
-            <IonTabButton tab="more" href="/more">
-              <IonIcon icon={ellipsisHorizontalOutline} />
-              <IonLabel>More</IonLabel>
-            </IonTabButton>
-
-          </IonTabBar>
-
-        </IonTabs>
+        </IonRouterOutlet>
       </IonReactRouter>
     </IonApp>
   );
