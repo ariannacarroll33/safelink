@@ -9,7 +9,8 @@ import {
   IonToast,
   IonItem,
   IonHeader,
-  IonToolbar
+  IonToolbar,
+  InputChangeEventDetail
 } from '@ionic/react';
 
 import {
@@ -23,18 +24,25 @@ import {
 
 import { useHistory } from 'react-router-dom';
 
+// FIREBASE INTEGRATION
+import { auth, db } from '../services/firebaseConfig';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+
 const CreateUser: React.FC = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
 
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string>('');
+
+  const [loading, setLoading] = useState<boolean>(false);
 
   const history = useHistory();
 
@@ -42,7 +50,8 @@ const CreateUser: React.FC = () => {
     <span style={{ color: '#E6A937', marginLeft: '4px' }}>*</span>
   );
 
-  const handleCreateUser = (e: React.FormEvent) => {
+  // ⚡ ASYNC FUNCTION TO HANDLE SIGN UP WITH FIREBASE
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name || !email || !phone || !password || !confirmPassword) {
@@ -57,12 +66,48 @@ const CreateUser: React.FC = () => {
       return;
     }
 
-    history.push('/verificationCode', { phone });
+    if (password.length < 8) {
+      setToastMessage('Password must be at least 8 characters long.');
+      setShowToast(true);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // 1. Create credential user in Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // 2. Save additional profile data (Name & Phone) in Firestore database
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        fullName: name,
+        email: email,
+        mobilePhone: phone,
+        createdAt: new Date().toISOString()
+      });
+
+      // 3. Success! Proceed to SMS Verification View
+      setLoading(false);
+      history.push('/verificationCode', { phone });
+
+    } catch (error: any) {
+      setLoading(false);
+      
+      if (error.code === 'auth/email-already-in-use') {
+        setToastMessage('This email address is already registered.');
+      } else if (error.code === 'auth/invalid-email') {
+        setToastMessage('The email address format is invalid.');
+      } else {
+        setToastMessage('An error occurred during registration. Please try again.');
+      }
+      setShowToast(true);
+    }
   };
 
   return (
     <IonPage>
-      {/* 🛠️ SOLUCIÓN: Usamos IonHeader e IonToolbar nativos de Ionic */}
       <IonHeader className="ion-no-border">
         <IonToolbar style={headerToolbarStyle}>
           <div style={headerFlexContainer}>
@@ -74,7 +119,7 @@ const CreateUser: React.FC = () => {
               <IonIcon icon={arrowBackOutline} style={{ color: '#FFFFFF', fontSize: '24px' }} />
             </button>
             <h1 style={headerTitleStyle}>Create Account</h1>
-            <div style={{ width: '40px' }} /> {/* Espaciador */}
+            <div style={{ width: '40px' }} />
           </div>
         </IonToolbar>
       </IonHeader>
@@ -109,7 +154,7 @@ const CreateUser: React.FC = () => {
                 <IonIcon slot="start" icon={personAddOutline} style={{ color: '#999' }} />
                 <IonInput
                   value={name}
-                  onIonInput={(e) => setName(e.detail.value!)}
+                  onIonChange={(e) => setName(e.detail.value || '')}
                   placeholder="e.g. Betty Higgs"
                 />
               </IonItem>
@@ -128,7 +173,7 @@ const CreateUser: React.FC = () => {
                 <IonInput
                   type="email"
                   value={email}
-                  onIonInput={(e) => setEmail(e.detail.value!)}
+                  onIonChange={(e) => setEmail(e.detail.value || '')}
                   placeholder="name@example.com"
                 />
               </IonItem>
@@ -147,7 +192,7 @@ const CreateUser: React.FC = () => {
                 <IonInput
                   type="tel"
                   value={phone}
-                  onIonInput={(e) => setPhone(e.detail.value!)}
+                  onIonChange={(e) => setPhone(e.detail.value || '')}
                   placeholder="+34 600 000 000"
                 />
               </IonItem>
@@ -167,7 +212,7 @@ const CreateUser: React.FC = () => {
                 <IonInput
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onIonInput={(e) => setPassword(e.detail.value!)}
+                  onIonChange={(e) => setPassword(e.detail.value || '')}
                 />
 
                 <IonIcon
@@ -197,7 +242,7 @@ const CreateUser: React.FC = () => {
                 <IonInput
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
-                  onIonInput={(e) => setConfirmPassword(e.detail.value!)}
+                  onIonChange={(e) => setConfirmPassword(e.detail.value || '')}
                 />
 
                 <IonIcon
@@ -214,6 +259,7 @@ const CreateUser: React.FC = () => {
           <IonButton
             expand="block"
             type="submit"
+            disabled={loading}
             style={{
               '--background': '#E6A937',
               '--color': '#FFFFFF',
@@ -223,7 +269,7 @@ const CreateUser: React.FC = () => {
               fontSize: '16px'
             }}
           >
-            Sign In
+            {loading ? 'Creating Profile...' : 'Sign In'}
           </IonButton>
 
         </form>
@@ -233,7 +279,7 @@ const CreateUser: React.FC = () => {
   );
 };
 
-/* STYLES */
+/* 🎨 ALL MISSING STYLES RESTORED HERE */
 const contentBackgroundStyle = {
   '--background': '#FFEBB7' 
 };
@@ -270,19 +316,19 @@ const headerTitleStyle: React.CSSProperties = {
   margin: 0
 };
 
-const boxStyle: React.CSSProperties = {
+const boxStyle = {
   background: '#FFFFFF', 
   '--background': '#FFFFFF',
   borderRadius: '12px',
   border: '1px solid #999999',
   padding: '2px 14px',
   marginTop: '6px'
-} as any;
+};
 
-const itemStyle: React.CSSProperties = {
+const itemStyle = {
   '--background': 'transparent',
   '--min-height': 'unset'
-} as any;
+};
 
 const labelStyle: React.CSSProperties = {
   fontSize: '17px',

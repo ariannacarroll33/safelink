@@ -36,10 +36,8 @@ function App() {
   return (
     <IonApp>
       <IonReactRouter> 
-        {/* Usamos un IonRouterOutlet principal para las páginas limpias sin menú inferior */}
         <IonRouterOutlet>
           
-          {/* 1. RUTA INICIAL: Carga la página de bienvenida de SafeLink */}
           <Route exact path="/">
             <Welcome />
           </Route> 
@@ -48,7 +46,6 @@ function App() {
             <Welcome />
           </Route>
 
-          {/* 2. RUTAS DE REGISTRO Y FLUJO INICIAL (Fuera de los Tabs para que no hereden fondos raros) */}
           <Route path="/register" exact={true}>
             <CreateUser />
           </Route>
@@ -61,7 +58,6 @@ function App() {
             <EmergencyContact />
           </Route>
 
-          {/* 3. SISTEMA DE TABS (Solo se activa cuando entramos a las páginas del menú) */}
           <Route path="/tabs" render={() => (
             <IonTabs>
               <IonRouterOutlet>
@@ -73,7 +69,6 @@ function App() {
                 <Route path="/tabs/more" render={() => <MorePage />} exact={true} /> 
               </IonRouterOutlet>
 
-              {/* Barra de navegación inferior limpia (solo aparece dentro de /tabs) */}
               <IonTabBar slot="bottom">
                 <IonTabButton tab="home" href="/tabs/home">
                   <IonIcon icon={homeOutline} />
@@ -98,7 +93,6 @@ function App() {
             </IonTabs>
           )} />
 
-          {/* Redirecciones secundarias por si acaso */}
           <Route exact path="/home">
             <Redirect to="/tabs/home" />
           </Route>

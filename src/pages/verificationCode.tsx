@@ -8,6 +8,10 @@ import {
 } from '@ionic/react';
 import { useHistory, useLocation } from 'react-router-dom';
 
+// 🔌 REAL FIREBASE IMPORTS
+import { auth } from '../services/firebaseConfig';
+import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+
 const CODE_LENGTH = 6;
 
 const VerificationCode: React.FC = () => {
@@ -18,31 +22,68 @@ const VerificationCode: React.FC = () => {
   const preservedData = location.state || {};
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
-  const [generatedCode, setGeneratedCode] = useState('');
+  
+  // 🔐 This replaces generatedCode and holds the real active Firebase session
+  const confirmationResultRef = useRef<ConfirmationResult | null>(null);
+  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
 
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
   const [resendDisabled, setResendDisabled] = useState(true);
   const [timer, setTimer] = useState(30);
+  const [loading, setLoading] = useState(false);
 
   const inputsRef = useRef<(HTMLIonInputElement | null)[]>([]);
 
-  // INIT CODE
+  // ⚡ INIT CODE & SEND REAL SMS ON MOUNT
   useEffect(() => {
     if (!phone) {
-      history.push('/register');
+      history.push('/createUser'); // Redirect to your registration page if no phone exists
       return;
     }
 
-    const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedCode(newCode);
+    // 1. Setup the invisible Recaptcha container
+    if (!recaptchaVerifierRef.current) {
+      recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        'expired-callback': () => {
+          setToastMessage('Recaptcha expired. Please try again.');
+          setShowToast(true);
+        }
+      });
+    }
 
-    console.log("SMS sent to:", phone);
-    console.log("🔐 Code:", newCode);
+    // 2. Trigger the real Firebase SMS
+    const sendInitialSMS = async () => {
+      try {
+        setLoading(true);
+        const confirmationResult = await signInWithPhoneNumber(auth, phone, recaptchaVerifierRef.current!);
+        confirmationResultRef.current = confirmationResult;
+        
+        setToastMessage(`SMS Verification code sent to ${phone}`);
+        setShowToast(true);
+      } catch (error: any) {
+        console.error("Firebase SMS Send Error:", error);
+        setToastMessage('Failed to send SMS. Ensure number includes country code (e.g. +34...)');
+        setShowToast(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    sendInitialSMS();
 
     setResendDisabled(true);
     setTimer(30);
+
+    // Cleanup recaptcha instance on unmount
+    return () => {
+      if (recaptchaVerifierRef.current) {
+        recaptchaVerifierRef.current.clear();
+        recaptchaVerifierRef.current = null;
+      }
+    };
   }, [phone, history]);
 
   // TIMER
@@ -107,46 +148,73 @@ const VerificationCode: React.FC = () => {
     setTimeout(() => {
       focusInput(CODE_LENGTH - 1);
     }, 100);
+
+    const fullCode = filled.join('');
+    if (fullCode.length === CODE_LENGTH && !filled.includes('')) {
+      verifyCode(fullCode);
+    }
   };
 
-  // VERIFY
-  const verifyCode = (entered: string) => {
-    if (entered === generatedCode) {
-      setToastMessage('Phone verified successfully');
+  // ⚡ VERIFY REAL FIREBASE CODE
+  const verifyCode = async (entered: string) => {
+    if (!confirmationResultRef.current) {
+      setToastMessage('No active verification session. Please resend.');
+      setShowToast(true);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Validating code with Firebase servers
+      await confirmationResultRef.current.confirm(entered);
+      
+      setToastMessage('Phone verified successfully!');
       setShowToast(true);
 
       setTimeout(() => {
         history.push('/home');
-      }, 1000);
-    } else {
-      setToastMessage('Invalid verification code');
+      }, 1500);
+    } catch (error: any) {
+      console.error("Firebase Code Verification Error:", error);
+      setToastMessage('Invalid verification code. Please try again.');
       setShowToast(true);
+      
+      // Reset inputs on failure
       setCode(Array(CODE_LENGTH).fill(''));
       focusInput(0);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // RESEND
-  const resendCode = () => {
-    const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+  // ⚡ RESEND REAL SMS
+  const resendCode = async () => {
+    if (!phone || !recaptchaVerifierRef.current) return;
 
-    setGeneratedCode(newCode);
-    setResendDisabled(true);
-    setTimer(30);
+    try {
+      setLoading(true);
+      const confirmationResult = await signInWithPhoneNumber(auth, phone, recaptchaVerifierRef.current);
+      confirmationResultRef.current = confirmationResult;
 
-    setCode(Array(CODE_LENGTH).fill(''));
-    focusInput(0);
+      setResendDisabled(true);
+      setTimer(30);
+      setCode(Array(CODE_LENGTH).fill(''));
+      focusInput(0);
 
-    console.log("🔁 New SMS sent to:", phone);
-    console.log("🔐 New code:", newCode);
-
-    setToastMessage('New code sent');
-    setShowToast(true);
+      setToastMessage('A new verification code has been sent');
+      setShowToast(true);
+    } catch (error: any) {
+      console.error("Firebase Resend Error:", error);
+      setToastMessage('Failed to resend code. Please try again later.');
+      setShowToast(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // CHANGE PHONE
   const changePhoneNumber = () => {
-    history.push('/register', {
+    history.push('/createUser', {
       ...preservedData,
       phone: ''
     });
@@ -154,7 +222,6 @@ const VerificationCode: React.FC = () => {
 
   return (
     <IonPage>
-      {/* Añadido tu estilo de fondo aquí directamente en el IonContent */}
       <IonContent className="ion-padding" style={contentBackgroundStyle}>
 
         <IonToast
@@ -164,6 +231,9 @@ const VerificationCode: React.FC = () => {
           duration={2500}
           position="bottom"
         />
+
+        {/* 🛠️ GHOST RECAPTCHA CONTAINER REQUIRED BY FIREBASE */}
+        <div id="recaptcha-container"></div>
 
         {/* HEADER */}
         <div style={{ textAlign: 'center', marginTop: '60px' }}>
@@ -199,6 +269,7 @@ const VerificationCode: React.FC = () => {
                 handleChange(e.detail.value ?? '', index)
               }
               onKeyDown={(e) => handleKeyDown(e as any, index)}
+              disabled={loading}
               style={{
                 width: '48px',
                 height: '56px',
@@ -217,6 +288,7 @@ const VerificationCode: React.FC = () => {
           <IonButton
             expand="block"
             onClick={() => verifyCode(code.join(''))}
+            disabled={loading || code.includes('')}
             style={{
               '--background': '#E6A937',
               '--border-radius': '25px',
@@ -224,7 +296,7 @@ const VerificationCode: React.FC = () => {
               fontWeight: 'bold'
             }}
           >
-            Verify
+            {loading ? 'Verifying...' : 'Verify'}
           </IonButton>
         </div>
 
@@ -232,13 +304,13 @@ const VerificationCode: React.FC = () => {
         <div style={{ marginTop: '20px', textAlign: 'center' }}>
           <button
             onClick={resendCode}
-            disabled={resendDisabled}
+            disabled={resendDisabled || loading}
             style={{
               background: 'none',
               border: 'none',
-              color: resendDisabled ? '#aaa' : '#E6A937',
+              color: resendDisabled || loading ? '#aaa' : '#E6A937',
               fontWeight: '600',
-              cursor: resendDisabled ? 'not-allowed' : 'pointer'
+              cursor: resendDisabled || loading ? 'not-allowed' : 'pointer'
             }}
           >
             Resend code {resendDisabled ? `(${timer}s)` : ''}
@@ -249,13 +321,14 @@ const VerificationCode: React.FC = () => {
         <div style={{ marginTop: '15px', textAlign: 'center' }}>
           <button
             onClick={changePhoneNumber}
+            disabled={loading}
             style={{
               background: 'none',
               border: 'none',
               color: '#666',
               fontSize: '13px',
               textDecoration: 'underline',
-              cursor: 'pointer'
+              cursor: loading ? 'not-allowed' : 'pointer'
             }}
           >
             Change phone number
