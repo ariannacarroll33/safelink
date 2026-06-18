@@ -5,7 +5,10 @@ import { notificationsOutline } from 'ionicons/icons';
 import './Home.css';
 
 const HomePage = () => {
+
+  // Start Navigation bar. Top and bottom.
 const history = useHistory();
+//History use to navigate to notifications page. 
   return (   
 
   <IonPage>
@@ -20,6 +23,9 @@ const history = useHistory();
       </IonToolbar>
     </IonHeader>
     <IonContent>
+      {/* End of navigation bar. Top and bottom. */}
+
+
       <div
         style={{
           display: 'flex',
