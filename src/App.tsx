@@ -48,6 +48,8 @@ import './theme/variables.css';
 
 setupIonicReact();
 
+
+// Start Navigation bar. Top and bottom.
 function App() {
   return (
     <IonApp>
@@ -86,3 +88,4 @@ function App() {
 }
 
 export default App;
+// End Navigation bar. Top and bottom.

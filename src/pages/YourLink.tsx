@@ -4,8 +4,10 @@ import { useHistory } from 'react-router-dom';
 import { notificationsOutline } from 'ionicons/icons';
 
 const YourLinkPage = () => {
-  //History use to navigate to notifications page. 
+  
+  //Start of Navigation bar. Top and bottom.
   const history = useHistory();
+  //History use to navigate to notifications page. 
   return (
     <IonPage>
       <IonHeader>
@@ -18,6 +20,9 @@ const YourLinkPage = () => {
           </IonButtons>
         </IonToolbar>
       </IonHeader>
+      {/* End of Navigation bar */}
+
+
       <IonContent>
         <div
           style={{
