@@ -2,17 +2,7 @@ import React from 'react';
 import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/react';
 import './Home.css';
 
-<<<<<<< HEAD
 const HomePage = () => (
-=======
-const HomePage = () => {
-
-  // Start Navigation bar. Top and bottom.
-const history = useHistory();
-//History use to navigate to notifications page. 
-  return (   
-
->>>>>>> badfbf0635016554cf88fe576c7067cd34559fdb
   <IonPage>
     <IonHeader>
       <IonToolbar>

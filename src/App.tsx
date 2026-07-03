@@ -13,6 +13,8 @@ import MorePage from './pages/More';
 import VerificationCode from './pages/verificationCode';
 import EmergencyContact from './pages/emergencyContact';
 import Welcome from './pages/Welcome';
+import Login from './pages/LogIn';
+import ForgotPassword from './pages/forgotPassword';
 
 /* App styles & layout */
 import './theme/colours.css';
@@ -32,8 +34,6 @@ import './theme/variables.css';
 
 setupIonicReact();
 
-
-// Start Navigation bar. Top and bottom.
 function App() {
   return (
     <IonApp>
@@ -58,6 +58,14 @@ function App() {
 
           <Route path="/emergencyContact" exact={true}> 
             <EmergencyContact />
+          </Route>
+
+          <Route path="/login" exact={true}>
+          <Login />
+          </Route>
+
+          <Route path="/forgot-password" exact={true}>
+          <ForgotPassword />
           </Route>
 
           <Route path="/tabs" render={() => (
@@ -114,9 +122,4 @@ function App() {
   );
 }
 
-<<<<<<< HEAD
 export default App;
-=======
-export default App;
-// End Navigation bar. Top and bottom.
->>>>>>> badfbf0635016554cf88fe576c7067cd34559fdb

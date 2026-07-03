@@ -6,15 +6,18 @@ import {
 } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 
+// import svg logo
+import logoGris from '../assets/gris-safelink.svg';
+
 const Welcome: React.FC = () => {
   const history = useHistory();
   const [showButtons, setShowButtons] = useState(false);
 
-  // Trigger the buttons to fade in after the logo animation completes (1.2 seconds)
+  // Los botones aparecen después de que termine la nueva animación larga (2.5s logo + margen)
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowButtons(true);
-    }, 1200);
+    }, 2700);
 
     return () => clearTimeout(timer);
   }, []);
@@ -23,20 +26,23 @@ const Welcome: React.FC = () => {
     <IonPage>
       <IonContent className="ion-padding" style={contentBackgroundStyle}>
         
-        {/* INJECT ANIMATION STYLES */}
+        {/* animation styles */}
         <style>{animationStyles}</style>
 
         <div style={mainContainerStyle}>
           
-          {/* ANIMATED LOGO AREA */}
+          {/* animated logo area */}
           <div style={logoWrapperStyle}>
-            <div style={outerCircleStyle}>
-              <div style={innerCircleStyle} />
-            </div>
+            {/* Se quitó el contenedor outerCircleStyle para eliminar el contorno */}
+            <img 
+              src={logoGris} 
+              alt="SafeLink Logo" 
+              style={{ width: '140px', height: '140px', objectFit: 'contain', marginBottom: '20px' }} 
+            />
             <h1 style={brandNameStyle}>SafeLink</h1>
           </div>
 
-          {/* FADE-IN BUTTONS CONTROLLER */}
+          {/* fade-in buttons */}
           <div 
             style={{
               ...buttonContainerStyle,
@@ -45,8 +51,7 @@ const Welcome: React.FC = () => {
               transition: 'opacity 0.6s ease-out, transform 0.6s ease-out'
             }}
           >
-            {/* SIGN UP BUTTON */}
-            {/* 🛠️ CORREGIDO: Ahora redirige a '/register' para que coincida con App.tsx */}
+            {/* sign up button */}
             <IonButton
               expand="block"
               onClick={() => history.push('/register')}
@@ -55,7 +60,7 @@ const Welcome: React.FC = () => {
               You're new? Sign up now
             </IonButton>
 
-            {/* LOG IN LINK BUTTON */}
+            {/* ENLACE DE INICIAR SESIÓN */}
             <button
               type="button"
               onClick={() => history.push('/login')}
@@ -72,7 +77,7 @@ const Welcome: React.FC = () => {
   );
 };
 
-/* CSS ANIMATIONS */
+/* animation CSS */
 const animationStyles = `
   @keyframes popInBounce {
     0% {
@@ -87,14 +92,9 @@ const animationStyles = `
       transform: scale(1);
     }
   }
-
-  @keyframes fadeInText {
-    0% { opacity: 0; }
-    100% { opacity: 1; }
-  }
 `;
 
-/* UI STYLES */
+/* styles */
 const contentBackgroundStyle = {
   '--background': '#FFEBB7'
 };
@@ -108,31 +108,14 @@ const mainContainerStyle: React.CSSProperties = {
   boxSizing: 'border-box'
 };
 
+// Cambiado de 1s a 2.5s para hacer la animación del logo más larga y fluida
 const logoWrapperStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
   flex: 1,
-  animation: 'popInBounce 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'
-};
-
-const outerCircleStyle: React.CSSProperties = {
-  width: '100px',
-  height: '100px',
-  borderRadius: '50%',
-  border: '4px dashed #E5A93C',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginBottom: '20px'
-};
-
-const innerCircleStyle: React.CSSProperties = {
-  width: '32px',
-  height: '32px',
-  borderRadius: '50%',
-  backgroundColor: '#A97D40'
+  animation: 'popInBounce 2.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'
 };
 
 const brandNameStyle: React.CSSProperties = {
