@@ -28,6 +28,8 @@ const MapsPage = () => {
     checkAndRequestPermissions();
   }, []); 
 
+
+  // Navigation bar and contents
   return (
     <IonPage>
       <IonHeader>
