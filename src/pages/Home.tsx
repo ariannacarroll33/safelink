@@ -2,22 +2,22 @@ import React, {useState} from 'react';
 import { useEffect, useRef } from 'react';
 import { GoogleMap } from '@capacitor/google-maps';
 import { Geolocation } from '@capacitor/geolocation';
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon } from '@ionic/react';
+import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon, IonInput } from '@ionic/react';
 import { useHistory } from 'react-router-dom'; 
 import { notificationsOutline } from 'ionicons/icons';
 import './Home.css';
 
-// The different scenarios
-type TripStatus = 'notstarted' | 'traveling' | 'arrived';
+// There is 3 different states for this page. This declares each state and sets default. See bellow change of states.
+type TripStatus = 'notstarted' | 'tripinformation' | 'traveling' | 'arrived';
+
 
 const HomePage = () => {
-  //History use to navigate to notifications page. 
-const history = useHistory();
-// Requesting location status function
+const history = useHistory(); //History use to navigate to notifications page. 
+const [destinationInput, setDestinationInput] = useState('');
 const [tripStatus, setTripStatus] = useState<TripStatus>('notstarted'); // Default to 'notstarted' 
-const mapRef = useRef<HTMLElement>(null);
 
 //Map
+const mapRef = useRef<HTMLElement>(null); // Empty box
  useEffect(() => {
     if (tripStatus === 'traveling' && mapRef.current) {
       createMap();
@@ -39,7 +39,14 @@ const mapRef = useRef<HTMLElement>(null);
         zoom: 15,
       },
     });
-  };
+      await newMap.addMarker({
+    coordinate: {
+      lat: position.coords.latitude,
+      lng: position.coords.longitude,
+    },
+    title: 'You',
+  });
+};
 
 
   return (   
@@ -60,7 +67,7 @@ const mapRef = useRef<HTMLElement>(null);
       {/* End of navigation bar. Top and bottom. */}
       
 
-{/* Trip has not yet started. */}
+{/* CHANGE OF STATE */}
 {tripStatus === 'notstarted' && (
   <div
     style={{
@@ -71,16 +78,35 @@ const mapRef = useRef<HTMLElement>(null);
     }}
   >
     Home content (not started state)
-      <IonButton onClick={() => setTripStatus('traveling')}>
+      <IonButton onClick={() => setTripStatus('tripinformation')}>
       Start Trip
     </IonButton>
   </div>
 )}
 
+{tripStatus === 'tripinformation' && (
+  <div
+    style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100%',
+    }}
+  >
+    <IonInput
+      placeholder="Enter destination"
+      value={destinationInput}
+      onIonInput={(e) => setDestinationInput(e.detail.value!)}
+    />
+    <IonButton onClick={() => setTripStatus('traveling')}>
+      Begin
+    </IonButton>
+  </div>
+)}
 
 {/* Trip happening. */}
 {tripStatus === 'traveling' && (
-  // @ts-ignore
   <capacitor-google-map
     ref={mapRef}
     
@@ -94,7 +120,7 @@ const mapRef = useRef<HTMLElement>(null);
 
 
 
-{/* Trip is over */}
+{/* CHANGE OF STATE */}
 {tripStatus === 'arrived' && (
   <div
     style={{
