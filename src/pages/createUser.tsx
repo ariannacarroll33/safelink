@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   IonContent,
   IonPage,
@@ -28,51 +28,52 @@ import { useHistory } from 'react-router-dom';
 // FIREBASE INTEGRATION
 import { auth, db } from '../services/firebaseConfig';
 import { createUserWithEmailAndPassword, RecaptchaVerifier, linkWithPhoneNumber } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
-// LISTA DE PAÍSES AMPLIADA CON EUROPA Y LATINOAMÉRICA (ORDENADA ALFABÉTICAMENTE)
+// countries + number 
 const COUNTRIES = [
-  { code: '+49', name: 'Alemania', flag: '🇩🇪' },
+  { code: '+49', name: 'Germany', flag: '🇩🇪' },
   { code: '+54', name: 'Argentina', flag: '🇦🇷' },
   { code: '+43', name: 'Austria', flag: '🇦🇹' },
-  { code: '+32', name: 'Bélgica', flag: '🇧🇪' },
+  { code: '+32', name: 'Belgium', flag: '🇧🇪' },
   { code: '+591', name: 'Bolivia', flag: '🇧🇴' },
   { code: '+56', name: 'Chile', flag: '🇨🇱' },
   { code: '+57', name: 'Colombia', flag: '🇨🇴' },
   { code: '+506', name: 'Costa Rica', flag: '🇨🇷' },
-  { code: '+45', name: 'Dinamarca', flag: '🇩🇰' },
+  { code: '+45', name: 'Denmark', flag: '🇩🇰' },
   { code: '+593', name: 'Ecuador', flag: '🇪🇨' },
   { code: '+503', name: 'El Salvador', flag: '🇸🇻' },
-  { code: '+34', name: 'España', flag: '🇪🇸' },
-  { code: '+1', name: 'USA / Canadá', flag: '🇺🇸' },
-  { code: '+33', name: 'Francia', flag: '🇫🇷' },
+  { code: '+34', name: 'Spain', flag: '🇪🇸' },
+  { code: '+1', name: 'USA / Canada', flag: '🇺🇸' },
+  { code: '+33', name: 'France', flag: '🇫🇷' },
   { code: '+502', name: 'Guatemala', flag: '🇬🇹' },
   { code: '+504', name: 'Honduras', flag: '🇭🇳' },
-  { code: '+44', name: 'Inglaterra / UK', flag: '🇬🇧' },
-  { code: '+353', name: 'Irlanda', flag: '🇮🇪' },
-  { code: '+39', name: 'Italia', flag: '🇮🇹' },
-  { code: '+52', name: 'México', flag: '🇲🇽' },
+  { code: '+44', name: 'United Kingdom', flag: '🇬🇧' },
+  { code: '+353', name: 'Ireland', flag: '🇮🇪' },
+  { code: '+39', name: 'Italy', flag: '🇮🇹' },
+  { code: '+52', name: 'Mexico', flag: '🇲🇽' },
   { code: '+505', name: 'Nicaragua', flag: '🇳🇮' },
-  { code: '+47', name: 'Noruega', flag: '🇳🇴' },
-  { code: '+31', name: 'Países Bajos', flag: '🇳🇱' },
-  { code: '+507', name: 'Panamá', flag: '🇵🇦' },
+  { code: '+47', name: 'Norway', flag: '🇳🇴' },
+  { code: '+31', name: 'Netherlands', flag: '🇳🇱' },
+  { code: '+507', name: 'Panama', flag: '🇵🇦' },
   { code: '+595', name: 'Paraguay', flag: '🇵🇾' },
-  { code: '+51', name: 'Perú', flag: '🇵🇪' },
-  { code: '+48', name: 'Polonia', flag: '🇵🇱' },
+  { code: '+51', name: 'Peru', flag: '🇵🇪' },
+  { code: '+48', name: 'Poland', flag: '🇵🇱' },
   { code: '+351', name: 'Portugal', flag: '🇵🇹' },
-  { code: '+1', name: 'Rep. Dominicana', flag: '🇩🇴' },
-  { code: '+44', name: 'Escocia', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿' },
-  { code: '+46', name: 'Suecia', flag: '🇸🇪' },
-  { code: '+41', name: 'Suiza', flag: '🇨🇭' },
+  { code: '+1', name: 'Dominican Republic', flag: '🇩🇴' },
+  { code: '+44', name: 'Scotland', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿' },
+  { code: '+46', name: 'Sweden', flag: '🇸🇪' },
+  { code: '+41', name: 'Switzerland', flag: '🇨🇭' },
   { code: '+598', name: 'Uruguay', flag: '🇺🇾' },
   { code: '+58', name: 'Venezuela', flag: '🇻🇪' },
 ];
 
 const CreateUser: React.FC = () => {
   const [name, setName] = useState<string>('');
+  const [username, setUsername] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   
-  // SEPARAMOS EL PREFIJO Y EL NÚMERO LOCAL
+  // prefix setting 
   const [countryPrefix, setCountryPrefix] = useState<string>('+34'); // Por defecto España
   const [phone, setPhone] = useState<string>('');
   
@@ -87,13 +88,31 @@ const CreateUser: React.FC = () => {
 
   const [loading, setLoading] = useState<boolean>(false);
 
+  // real time password validation
+  const [hasEightChars, setHasEightChars] = useState<boolean>(false);
+  const [hasNumber, setHasNumber] = useState<boolean>(false);
+  const [hasSpecialChar, setHasSpecialChar] = useState<boolean>(false);
+
   const history = useHistory();
 
   const requiredAsterisk = (
     <span style={{ color: '#E6A937', marginLeft: '4px' }}>*</span>
   );
 
-  // ⚡ INICIALIZAR RECAPTCHA
+  // validation password settings 
+  useEffect(() => {
+    setHasEightChars(password.length >= 8);
+    setHasNumber(/\d/.test(password));
+    setHasSpecialChar(/[!@#$%^&*(),.?":{}|<>_+\-[\]/\\]/.test(password));
+  }, [password]);
+
+  // see if password is valid (for requirements)
+  const isPasswordValid = hasEightChars && hasNumber && hasSpecialChar;
+
+  // see contries summary
+  const selectedCountry = COUNTRIES.find(c => c.code === countryPrefix) || COUNTRIES[11];
+
+  // start RECAPTCHA
   const setupRecaptcha = () => {
     try {
       if ((window as any).recaptchaVerifier) {
@@ -103,28 +122,36 @@ const CreateUser: React.FC = () => {
       (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible',
         callback: () => {
-          console.log('ReCAPTCHA verificado con éxito.');
+          console.log('ReCAPTCHA verified successfully.');
         },
         'expired-callback': () => {
-          alert('El reCAPTCHA ha expirado. Reinténtalo.');
+          alert('ReCAPTCHA expired. Please try again.');
         }
       });
       return (window as any).recaptchaVerifier;
     } catch (err) {
-      console.error('Error en RecaptchaVerifier:', err);
+      console.error('Error in RecaptchaVerifier:', err);
     }
   };
 
-  // ⚡ REGISTRO Y ENVÍO DE SMS
+  // ⚡ register and send sms
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Unimos el prefijo seleccionado con el número limpio ingresado por el usuario
+    // clean data
+    const cleanUsername = username.trim().toLowerCase().replace(/^@/, '');
     const cleanPhoneDigits = phone.replace(/\s+/g, ''); 
     const fullPhoneNumber = `${countryPrefix}${cleanPhoneDigits}`;
 
-    if (!name || !email || !cleanPhoneDigits || !password || !confirmPassword) {
+    if (!name || !cleanUsername || !email || !cleanPhoneDigits || !password || !confirmPassword) {
       setToastMessage('Please fill in all required fields.');
+      setShowToast(true);
+      return;
+    }
+
+    // strict verification password 
+    if (!isPasswordValid) {
+      setToastMessage('Password does not meet all security requirements.');
       setShowToast(true);
       return;
     }
@@ -135,33 +162,40 @@ const CreateUser: React.FC = () => {
       return;
     }
 
-    if (password.length < 8) {
-      setToastMessage('Password must be at least 8 characters long.');
-      setShowToast(true);
-      return;
-    }
-
     try {
       setLoading(true);
 
-      const appVerifier = setupRecaptcha();
-      if (!appVerifier) {
-        throw new Error('No se pudo inicializar el validador de seguridad.');
+      // verfication username is unique 
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('username', '==', cleanUsername));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        setLoading(false);
+        setToastMessage('This username is already taken. Please choose another.');
+        setShowToast(true);
+        return;
       }
 
-      // 1. Crear credenciales Email/Password
+      const appVerifier = setupRecaptcha();
+      if (!appVerifier) {
+        throw new Error('Could not initialize security validator.');
+      }
+
+      // create email and password 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Vincular y enviar SMS con el número completo e internacional estructurado por detrás
-      console.log('Enviando SMS real a:', fullPhoneNumber);
+      // send sms 
+      console.log('Sending real SMS to:', fullPhoneNumber);
       const confirmationResult = await linkWithPhoneNumber(user, fullPhoneNumber, appVerifier);
       (window as any).confirmationResult = confirmationResult;
 
-      // 3. Guardar datos en Firestore
+      // save in firestore 
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         fullName: name,
+        username: cleanUsername,
         email: email,
         mobilePhone: fullPhoneNumber,
         createdAt: new Date().toISOString()
@@ -172,7 +206,7 @@ const CreateUser: React.FC = () => {
 
     } catch (error: any) {
       setLoading(false);
-      console.error('Error detectado:', error);
+      console.error('Error detected:', error);
       
       if (error.code === 'auth/email-already-in-use') {
         setToastMessage('This email address is already registered.');
@@ -189,6 +223,44 @@ const CreateUser: React.FC = () => {
 
   return (
     <IonPage>
+      {/* yellow-400 font for the countries selection page */}
+      <style>{`
+        ion-action-sheet.custom-country-select-sheet {
+          --background: var(--yellow-400) !important;
+          --button-background: var(--yellow-400) !important;
+          --button-background-selected: var(--yellow-500) !important;
+          --button-color: var(--black) !important;
+        }
+
+        .custom-country-select-sheet .action-sheet-container,
+        .custom-country-select-sheet .action-sheet-group {
+          background-color: var(--yellow-400) !important;
+          background: var(--yellow-400) !important;
+        }
+
+        .custom-country-select-sheet .action-sheet-button {
+          --background: var(--yellow-400) !important;
+          background-color: var(--yellow-400) !important;
+          background: var(--yellow-400) !important;
+          color: var(--black) !important;
+          font-weight: 600 !important;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+        }
+
+        .custom-country-select-sheet .action-sheet-button.action-sheet-cancel {
+          --background: var(--yellow-600) !important;
+          background-color: var(--yellow-600) !important;
+          background: var(--yellow-600) !important;
+          color: var(--white) !important;
+          font-weight: bold !important;
+        }
+        
+        .custom-country-select-sheet .action-sheet-button.activated {
+          background-color: var(--yellow-500) !important;
+          background: var(--yellow-500) !important;
+        }
+      `}</style>
+
       <IonHeader className="ion-no-border">
         <IonToolbar style={headerToolbarStyle}>
           <div style={headerFlexContainer}>
@@ -221,9 +293,9 @@ const CreateUser: React.FC = () => {
 
         <form onSubmit={handleCreateUser} style={{ padding: '0 10px', paddingBottom: '30px' }}>
 
-          {/* NAME */}
+          {/* YOUR NAME */}
           <div style={{ marginBottom: '14px' }}>
-            <div style={labelStyle}>Full Name {requiredAsterisk}</div>
+            <div style={labelStyle}>Your Name {requiredAsterisk}</div>
             <div style={boxStyle}>
               <IonItem lines="none" style={itemStyle}>
                 <IonIcon slot="start" icon={personAddOutline} style={{ color: '#999' }} />
@@ -231,6 +303,20 @@ const CreateUser: React.FC = () => {
                   value={name}
                   onIonChange={(e) => setName(e.detail.value || '')}
                   placeholder="e.g. Betty Higgs"
+                />
+              </IonItem>
+            </div>
+          </div>
+
+          {/* USERNAME */}
+          <div style={{ marginBottom: '14px' }}>
+            <div style={labelStyle}>Username {requiredAsterisk}</div>
+            <div style={boxStyle}>
+              <IonItem lines="none" style={itemStyle}>
+                <IonInput
+                  value={username}
+                  onIonChange={(e) => setUsername(e.detail.value || '')}
+                  placeholder="@userexample"
                 />
               </IonItem>
             </div>
@@ -252,31 +338,68 @@ const CreateUser: React.FC = () => {
             </div>
           </div>
 
-          {/* PHONE FIELD WITH COUNTRY SELECTOR */}
+          {/* PHONE FIELD */}
           <div style={{ marginBottom: '14px' }}>
             <div style={labelStyle}>Mobile Phone {requiredAsterisk}</div>
             
             <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
               
-              {/* SELECTOR DE BANDERA + PREFIJO */}
-              <div style={{ ...boxStyle, marginTop: 0, width: '120px', flexShrink: 0 }}>
-                <IonItem lines="none" style={itemStyle}>
-                  <IonSelect 
-                    value={countryPrefix} 
-                    onIonChange={(e) => setCountryPrefix(e.detail.value)}
-                    interface="action-sheet" 
-                    style={{ '--padding-start': '0', fontSize: '14px' }}
-                  >
-                    {COUNTRIES.map((country, index) => (
+              {/* dynamic countries selector */}
+              <div style={{ 
+                ...boxStyle, 
+                marginTop: 0, 
+                minWidth: '110px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                position: 'relative',
+                padding: '2px 8px'
+              }}>
+                {/* visual display */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  fontSize: '15px', 
+                  fontWeight: '600', 
+                  color: '#000000',
+                  pointerEvents: 'none',
+                  whiteSpace: 'nowrap'
+                }}>
+                  <span>{selectedCountry.flag}</span>
+                  <span>{selectedCountry.code}</span>
+                </div>
+
+                {/* ionic select */}
+                <IonSelect 
+                  value={countryPrefix} 
+                  onIonChange={(e) => setCountryPrefix(e.detail.value)}
+                  interface="action-sheet" 
+                  interfaceOptions={{
+                    cssClass: 'custom-country-select-sheet'
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    opacity: 0,
+                    pointerEvents: 'auto'
+                  }}
+                >
+                  {COUNTRIES.map((country, index) => {
+                    const listLabel = `${country.flag} ${country.code} - ${country.name}`;
+                    return (
                       <IonSelectOption key={index} value={country.code}>
-                        {country.flag} {country.code}
+                        {listLabel}
                       </IonSelectOption>
-                    ))}
-                  </IonSelect>
-                </IonItem>
+                    );
+                  })}
+                </IonSelect>
               </div>
 
-              {/* INPUT PARA EL NÚMERO LOCAL SOLO */}
+              {/* input number  */}
               <div style={{ ...boxStyle, marginTop: 0, flexGrow: 1 }}>
                 <IonItem lines="none" style={itemStyle}>
                   <IonInput
@@ -312,9 +435,35 @@ const CreateUser: React.FC = () => {
             </div>
           </div>
 
-          <IonNote style={{ fontSize: '12px', color: '#A05C1B', fontWeight: '500', display: 'block', marginTop: '4px' }}>
-            Must be at least 8 characters long.
-          </IonNote>
+          {/* dynamic rules */}
+          <div style={{ padding: '0 4px', marginBottom: '14px' }}>
+            <div style={{ fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
+              Password Requirements:
+            </div>
+            <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px' }}>
+              <li style={{ 
+                color: hasEightChars ? '#A05C1B' : '#999999', 
+                transition: 'color 0.3s ease',
+                fontWeight: hasEightChars ? '700' : '500' 
+              }}>
+                At least 8 characters long
+              </li>
+              <li style={{ 
+                color: hasNumber ? '#A05C1B' : '#999999', 
+                transition: 'color 0.3s ease',
+                fontWeight: hasNumber ? '700' : '500' 
+              }}>
+                At least one number
+              </li>
+              <li style={{ 
+                color: hasSpecialChar ? '#A05C1B' : '#999999', 
+                transition: 'color 0.3s ease',
+                fontWeight: hasSpecialChar ? '700' : '500' 
+              }}>
+                At least one special character (e.g., !@#$%)
+              </li>
+            </ul>
+          </div>
 
           {/* CONFIRM PASSWORD */}
           <div style={{ marginTop: '14px', marginBottom: '28px' }}>
@@ -341,9 +490,9 @@ const CreateUser: React.FC = () => {
           <IonButton
             expand="block"
             type="submit"
-            disabled={loading}
+            disabled={loading || !isPasswordValid}
             style={{
-              '--background': '#E6A937',
+              '--background': isPasswordValid ? '#E6A937' : '#D4C3A3',
               '--color': '#FFFFFF',
               '--border-radius': '25px',
               height: '50px',
@@ -360,7 +509,7 @@ const CreateUser: React.FC = () => {
   );
 };
 
-/* 🎨 ESTILOS MANTENIDOS */
+/* styles */
 const contentBackgroundStyle = { '--background': '#FFEBB7' };
 const headerToolbarStyle = { '--background': '#E5A93C', '--border-width': '0' };
 const headerFlexContainer: React.CSSProperties = { height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' };

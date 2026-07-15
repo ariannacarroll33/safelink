@@ -1,348 +1,410 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  IonPage,
   IonContent,
+  IonPage,
+  IonInput,
   IonButton,
+  IonIcon,
   IonToast,
-  IonInput
+  IonItem,
+  IonHeader,
+  IonToolbar
 } from '@ionic/react';
+import { arrowBackOutline, chatbubbleOutline, logoGoogle, logoApple } from 'ionicons/icons';
 import { useHistory, useLocation } from 'react-router-dom';
 
-// 🔌 REAL FIREBASE IMPORTS
-import { auth } from '../services/firebaseConfig';
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+// FIREBASE
+import { auth, db } from '../services/firebaseConfig';
+import { 
+  RecaptchaVerifier, 
+  linkWithPhoneNumber, 
+  GoogleAuthProvider, 
+  OAuthProvider, 
+  linkWithPopup 
+} from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
 
-const CODE_LENGTH = 6;
+interface LocationState {
+  phone?: string;
+}
 
 const VerificationCode: React.FC = () => {
   const history = useHistory();
-  const location = useLocation<any>();
-
-  const phone = location.state?.phone;
-  const preservedData = location.state || {};
-
-  const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
+  const location = useLocation<LocationState>();
   
-  // 🔐 This replaces generatedCode and holds the real active Firebase session
-  const confirmationResultRef = useRef<ConfirmationResult | null>(null);
-  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
+  // Retrieve the phone number passed from CreateUser.tsx
+  const phone = location.state?.phone || '';
 
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const [verificationCode, setVerificationCode] = useState<string>('');
+  const [smsSent, setSmsSent] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  
+  const [showToast, setShowToast] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string>('');
 
-  const [resendDisabled, setResendDisabled] = useState(true);
-  const [timer, setTimer] = useState(30);
-  const [loading, setLoading] = useState(false);
-
-  const inputsRef = useRef<(HTMLIonInputElement | null)[]>([]);
-
-  // ⚡ INIT CODE & SEND REAL SMS ON MOUNT
-  useEffect(() => {
-    if (!phone) {
-      history.push('/createUser'); // Redirect to your registration page if no phone exists
-      return;
-    }
-
-    // 1. Setup the invisible Recaptcha container
-    if (!recaptchaVerifierRef.current) {
-      recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+  // 1. INITIALIZE INVISIBLE RECAPTCHA FOR SMS
+  const setupRecaptcha = () => {
+    try {
+      if ((window as any).recaptchaVerifier) {
+        (window as any).recaptchaVerifier.clear();
+      }
+      (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible',
-        'expired-callback': () => {
-          setToastMessage('Recaptcha expired. Please try again.');
-          setShowToast(true);
-        }
+        callback: () => console.log('ReCAPTCHA successfully verified'),
+        'expired-callback': () => alert('ReCAPTCHA has expired. Please try again.')
       });
+      return (window as any).recaptchaVerifier;
+    } catch (err) {
+      console.error('Error in RecaptchaVerifier:', err);
     }
+  };
 
-    // 2. Trigger the real Firebase SMS
-    const sendInitialSMS = async () => {
-      try {
-        setLoading(true);
-        const confirmationResult = await signInWithPhoneNumber(auth, phone, recaptchaVerifierRef.current!);
-        confirmationResultRef.current = confirmationResult;
-        
-        setToastMessage(`SMS Verification code sent to ${phone}`);
-        setShowToast(true);
-      } catch (error: any) {
-        console.error("Firebase SMS Send Error:", error);
-        setToastMessage('Failed to send SMS. Ensure number includes country code (e.g. +34...)');
-        setShowToast(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    sendInitialSMS();
-
-    setResendDisabled(true);
-    setTimer(30);
-
-    // Cleanup recaptcha instance on unmount
-    return () => {
-      if (recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current.clear();
-        recaptchaVerifierRef.current = null;
-      }
-    };
-  }, [phone, history]);
-
-  // TIMER
-  useEffect(() => {
-    if (timer <= 0) {
-      setResendDisabled(false);
+  // 💬 OPTION A: SEND SMS
+  const handleSendSMS = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setToastMessage('User session not found. Please register again.');
+      setShowToast(true);
       return;
     }
 
-    const interval = setInterval(() => {
-      setTimer((prev) => prev - 1);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [timer]);
-
-  // FOCUS
-  const focusInput = async (index: number) => {
-    const input = inputsRef.current[index];
-    if (!input) return;
-
-    const native = await input.getInputElement();
-    native?.focus();
-  };
-
-  // INPUT
-  const handleChange = (value: string, index: number) => {
-    if (!/^[0-9]?$/.test(value)) return;
-
-    const newCode = [...code];
-    newCode[index] = value;
-    setCode(newCode);
-
-    if (value && index < CODE_LENGTH - 1) {
-      focusInput(index + 1);
-    }
-
-    const fullCode = newCode.join('');
-    if (fullCode.length === CODE_LENGTH && !newCode.includes('')) {
-      verifyCode(fullCode);
-    }
-  };
-
-  // BACKSPACE
-  const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
-    if (e.key === 'Backspace' && !code[index] && index > 0) {
-      focusInput(index - 1);
-    }
-  };
-
-  // PASTE
-  const handlePaste = (e: React.ClipboardEvent) => {
-    const pasted = e.clipboardData.getData('text').slice(0, CODE_LENGTH);
-
-    if (!/^[0-9]+$/.test(pasted)) return;
-
-    const newCode = pasted.split('').slice(0, CODE_LENGTH);
-    const filled = Array(CODE_LENGTH).fill('').map((_, i) => newCode[i] || '');
-
-    setCode(filled);
-
-    setTimeout(() => {
-      focusInput(CODE_LENGTH - 1);
-    }, 100);
-
-    const fullCode = filled.join('');
-    if (fullCode.length === CODE_LENGTH && !filled.includes('')) {
-      verifyCode(fullCode);
-    }
-  };
-
-  // ⚡ VERIFY REAL FIREBASE CODE
-  const verifyCode = async (entered: string) => {
-    if (!confirmationResultRef.current) {
-      setToastMessage('No active verification session. Please resend.');
+    if (!phone) {
+      setToastMessage('Phone number not specified.');
       setShowToast(true);
       return;
     }
 
     try {
       setLoading(true);
-      // Validating code with Firebase servers
-      await confirmationResultRef.current.confirm(entered);
-      
+      const appVerifier = setupRecaptcha();
+      if (!appVerifier) throw new Error('Failed to initialize security validator.');
+
+      console.log('Sending test/real SMS to:', phone);
+      const confirmationResult = await linkWithPhoneNumber(currentUser, phone, appVerifier);
+      (window as any).confirmationResult = confirmationResult;
+
+      setSmsSent(true);
+      setLoading(false);
+      setToastMessage('Verification code sent.');
+      setShowToast(true);
+    } catch (error: any) {
+      setLoading(false);
+      console.error('Error sending SMS:', error);
+      setToastMessage(`Error sending SMS: ${error.message}`);
+      setShowToast(true);
+    }
+  };
+
+  // 💬 OPTION A (CONTINUED): VALIDATE THE SMS CODE
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const confirmationResult = (window as any).confirmationResult;
+
+    if (!confirmationResult) {
+      setToastMessage('No active verification session. Send the SMS first.');
+      setShowToast(true);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await confirmationResult.confirm(verificationCode);
+
+      // Update verification status in Firestore
+      if (auth.currentUser) {
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+          verified: true,
+          verifiedBy: 'sms'
+        });
+      }
+
+      setLoading(false);
       setToastMessage('Phone verified successfully!');
       setShowToast(true);
-
-      setTimeout(() => {
-        history.push('/home');
-      }, 1500);
-    } catch (error: any) {
-      console.error("Firebase Code Verification Error:", error);
-      setToastMessage('Invalid verification code. Please try again.');
-      setShowToast(true);
       
-      // Reset inputs on failure
-      setCode(Array(CODE_LENGTH).fill(''));
-      focusInput(0);
-    } finally {
+      // Redirecting to onboarding page as requested
+      history.push('/onboarding'); 
+
+    } catch (error: any) {
       setLoading(false);
+      console.error('SMS verification failed:', error);
+      setToastMessage('Invalid code. Please check and try again.');
+      setShowToast(true);
     }
   };
 
-  // ⚡ RESEND REAL SMS
-  const resendCode = async () => {
-    if (!phone || !recaptchaVerifierRef.current) return;
+  // 🚀 OPTION B: VERIFY/LINK WITH GOOGLE POPUP
+  const handleVerifyWithGoogle = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setToastMessage('Session not active. Please register first.');
+      setShowToast(true);
+      return;
+    }
 
     try {
       setLoading(true);
-      const confirmationResult = await signInWithPhoneNumber(auth, phone, recaptchaVerifierRef.current);
-      confirmationResultRef.current = confirmationResult;
+      const provider = new GoogleAuthProvider();
+      // Link Google account to the currently created email user
+      await linkWithPopup(currentUser, provider);
 
-      setResendDisabled(true);
-      setTimer(30);
-      setCode(Array(CODE_LENGTH).fill(''));
-      focusInput(0);
+      // Mark user as verified via Google in Firestore
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        verified: true,
+        verifiedBy: 'google'
+      });
 
-      setToastMessage('A new verification code has been sent');
-      setShowToast(true);
-    } catch (error: any) {
-      console.error("Firebase Resend Error:", error);
-      setToastMessage('Failed to resend code. Please try again later.');
-      setShowToast(true);
-    } finally {
       setLoading(false);
+      setToastMessage('Account verified with Google!');
+      setShowToast(true);
+      
+      // Redirecting to onboarding page as requested
+      history.push('/onboarding'); 
+    } catch (error: any) {
+      setLoading(false);
+      console.error('Error linking Google:', error);
+      setToastMessage(error.code === 'auth/credential-already-in-use' 
+        ? 'This Google account is already linked to another user.' 
+        : 'Failed to verify with Google.'
+      );
+      setShowToast(true);
     }
   };
 
-  // CHANGE PHONE
-  const changePhoneNumber = () => {
-    history.push('/createUser', {
-      ...preservedData,
-      phone: ''
-    });
+  // 🍏 OPTION C: VERIFY/LINK WITH APPLE POPUP
+  const handleVerifyWithApple = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setToastMessage('Session not active. Please register first.');
+      setShowToast(true);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const provider = new OAuthProvider('apple.com');
+      // Link Apple account to the current user
+      await linkWithPopup(currentUser, provider);
+
+      // Mark user as verified via Apple in Firestore
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        verified: true,
+        verifiedBy: 'apple'
+      });
+
+      setLoading(false);
+      setToastMessage('Account verified with Apple!');
+      setShowToast(true);
+      
+      // Redirecting to onboarding page as requested
+      history.push('/onboarding');
+    } catch (error: any) {
+      setLoading(false);
+      console.error('Error linking Apple:', error);
+      setToastMessage(error.code === 'auth/credential-already-in-use' 
+        ? 'This Apple account is already linked to another user.' 
+        : 'Failed to verify with Apple.'
+      );
+      setShowToast(true);
+    }
   };
 
   return (
     <IonPage>
-      <IonContent className="ion-padding" style={contentBackgroundStyle}>
+      <IonHeader className="ion-no-border">
+        <IonToolbar style={headerToolbarStyle}>
+          <div style={headerFlexContainer}>
+            <button onClick={() => history.goBack()} style={backButtonStyle} type="button">
+              <IonIcon icon={arrowBackOutline} style={{ color: '#FFFFFF', fontSize: '24px' }} />
+            </button>
+            <h1 style={headerTitleStyle}>Verify Account</h1>
+            <div style={{ width: '40px' }} />
+          </div>
+        </IonToolbar>
+      </IonHeader>
 
+      <IonContent className="ion-padding" style={contentBackgroundStyle}>
         <IonToast
           isOpen={showToast}
           onDidDismiss={() => setShowToast(false)}
           message={toastMessage}
-          duration={2500}
+          duration={3000}
           position="bottom"
         />
 
-        {/* 🛠️ GHOST RECAPTCHA CONTAINER REQUIRED BY FIREBASE */}
+        {/* Invisible container div required by reCAPTCHA */}
         <div id="recaptcha-container"></div>
 
-        {/* HEADER */}
-        <div style={{ textAlign: 'center', marginTop: '60px' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>
-            Verify your phone number
-          </h1>
-
-          <p style={{ color: '#666', fontSize: '14px' }}>
-            Enter the 6-digit code sent to {phone}
+        <div style={{ textAlign: 'center', margin: '30px 0 20px 0' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#633A0E' }}>
+            Verify Your Account
+          </h2>
+          <p style={{ color: '#555', fontSize: '14px', padding: '0 20px' }}>
+            Choose a method to verify your identity and activate your profile.
           </p>
         </div>
 
-        {/* INPUTS */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '10px',
-            marginTop: '40px'
-          }}
-          onPaste={handlePaste}
-        >
-          {code.map((digit, index) => (
-            <IonInput
-              key={index}
-              ref={(el) => {
-                inputsRef.current[index] = el;
-              }}
-              value={digit}
-              maxlength={1}
-              inputmode="numeric"
-              onIonInput={(e) =>
-                handleChange(e.detail.value ?? '', index)
-              }
-              onKeyDown={(e) => handleKeyDown(e as any, index)}
-              disabled={loading}
-              style={{
-                width: '48px',
-                height: '56px',
-                textAlign: 'center',
-                fontSize: '22px',
-                borderRadius: '12px',
-                border: '1px solid #ddd',
-                background: '#f4f5f8'
-              }}
-            />
-          ))}
+        {/* ================= SMS SECTION ================= */}
+        <div style={sectionBoxStyle}>
+          <h3 style={sectionTitleStyle}>
+            <IonIcon icon={chatbubbleOutline} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+            Option 1: Verify via SMS
+          </h3>
+          
+          {!smsSent ? (
+            <div>
+              <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
+                We will send a validation code to: <strong>{phone || 'unspecified number'}</strong>
+              </p>
+              <IonButton 
+                expand="block" 
+                onClick={handleSendSMS}
+                disabled={loading || !phone}
+                style={{ '--background': '#E6A937', '--color': '#FFF', '--border-radius': '10px' }}
+              >
+                {loading ? 'Sending...' : 'Send Code via SMS'}
+              </IonButton>
+            </div>
+          ) : (
+            <form onSubmit={handleVerifyCode}>
+              <p style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>
+                Enter the 6-digit code received:
+              </p>
+              <div style={inputBoxStyle}>
+                <IonItem lines="none" style={itemStyle}>
+                  <IonInput
+                    type="number"
+                    value={verificationCode}
+                    onIonChange={(e) => setVerificationCode(e.detail.value || '')}
+                    placeholder="123456"
+                    style={{ textAlign: 'center', fontSize: '18px', letterSpacing: '4px' }}
+                  />
+                </IonItem>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                <IonButton 
+                  expand="block" 
+                  type="submit"
+                  disabled={loading || verificationCode.length !== 6}
+                  style={{ flex: 1, '--background': '#E6A937', '--color': '#FFF', '--border-radius': '10px' }}
+                >
+                  {loading ? 'Verifying...' : 'Verify Code'}
+                </IonButton>
+                <IonButton 
+                  fill="outline"
+                  onClick={() => setSmsSent(false)}
+                  style={{ '--border-radius': '10px', '--color': '#E6A937', '--border-color': '#E6A937' }}
+                >
+                  Change Method
+                </IonButton>
+              </div>
+            </form>
+          )}
         </div>
 
-        {/* VERIFY */}
-        <div style={{ marginTop: '30px' }}>
-          <IonButton
-            expand="block"
-            onClick={() => verifyCode(code.join(''))}
-            disabled={loading || code.includes('')}
-            style={{
-              '--background': '#E6A937',
-              '--border-radius': '25px',
-              height: '46px',
-              fontWeight: 'bold'
-            }}
-          >
-            {loading ? 'Verifying...' : 'Verify'}
-          </IonButton>
+        {/* ================= VISUAL DIVIDER ================= */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          margin: '28px 0 20px 0',
+          color: '#633A0E',
+          fontSize: '13px',
+          fontWeight: '600'
+        }}>
+          <span style={{ flex: 1, height: '1px', background: 'rgba(99, 58, 14, 0.2)', marginRight: '10px' }}></span>
+          <span>OR VERIFY INSTANTLY WITH</span>
+          <span style={{ flex: 1, height: '1px', background: 'rgba(99, 58, 14, 0.2)', marginLeft: '10px' }}></span>
         </div>
 
-        {/* RESEND */}
-        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+        {/* ================= GOOGLE & APPLE SECTION ================= */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          
+          {/* VERIFY WITH GOOGLE */}
           <button
-            onClick={resendCode}
-            disabled={resendDisabled || loading}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: resendDisabled || loading ? '#aaa' : '#E6A937',
-              fontWeight: '600',
-              cursor: resendDisabled || loading ? 'not-allowed' : 'pointer'
-            }}
-          >
-            Resend code {resendDisabled ? `(${timer}s)` : ''}
-          </button>
-        </div>
-
-        {/* CHANGE PHONE */}
-        <div style={{ marginTop: '15px', textAlign: 'center' }}>
-          <button
-            onClick={changePhoneNumber}
+            type="button"
+            onClick={handleVerifyWithGoogle}
             disabled={loading}
             style={{
-              background: 'none',
-              border: 'none',
-              color: '#666',
-              fontSize: '13px',
-              textDecoration: 'underline',
-              cursor: loading ? 'not-allowed' : 'pointer'
+              height: '50px',
+              borderRadius: '12px',
+              border: '1px solid #999999',
+              backgroundColor: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              fontWeight: '600',
+              fontSize: '15px',
+              cursor: 'pointer',
+              color: '#000000',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
             }}
           >
-            Change phone number
+            <IonIcon icon={logoGoogle} style={{ color: '#EA4335', fontSize: '20px' }} />
+            Verify with Google
           </button>
-        </div>
 
+          {/* VERIFY WITH APPLE */}
+          <button
+            type="button"
+            onClick={handleVerifyWithApple}
+            disabled={loading}
+            style={{
+              height: '50px',
+              borderRadius: '12px',
+              border: '1px solid #000000',
+              backgroundColor: '#000000',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              fontWeight: '600',
+              fontSize: '15px',
+              cursor: 'pointer',
+              color: '#FFFFFF',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            <IonIcon icon={logoApple} style={{ color: '#FFFFFF', fontSize: '20px' }} />
+            Verify with Apple
+          </button>
+
+        </div>
       </IonContent>
     </IonPage>
   );
 };
 
-/* STYLES */
-const contentBackgroundStyle = {
-  '--background': '#FFEBB7'
+/* 🎨 STYLES */
+const contentBackgroundStyle = { '--background': '#FFEBB7' };
+const headerToolbarStyle = { '--background': '#E5A93C', '--border-width': '0' };
+const headerFlexContainer: React.CSSProperties = { height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' };
+const backButtonStyle: React.CSSProperties = { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'rgba(0, 0, 0, 0.2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' };
+const headerTitleStyle: React.CSSProperties = { color: '#FFFFFF', fontSize: '22px', fontWeight: '700', margin: 0 };
+const itemStyle = { '--background': 'transparent', '--min-height': 'unset' };
+
+const sectionBoxStyle: React.CSSProperties = {
+  backgroundColor: '#FFFFFF',
+  borderRadius: '16px',
+  padding: '18px',
+  border: '1px solid #D4C3A3',
+  boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+  fontSize: '16px',
+  fontWeight: '700',
+  color: '#633A0E',
+  margin: '0 0 12px 0'
+};
+
+const inputBoxStyle = {
+  background: '#F5F5F5',
+  borderRadius: '10px',
+  border: '1px solid #CCCCCC',
+  padding: '2px 8px',
+  marginTop: '6px'
 };
 
 export default VerificationCode;

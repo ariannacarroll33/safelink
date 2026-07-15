@@ -1,65 +1,8 @@
-<<<<<<< HEAD
 import React from 'react';
 import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/react';
 import './Home.css';
 
 const HomePage = () => (
-=======
-import React, {useState} from 'react';
-import { useEffect, useRef } from 'react';
-import { GoogleMap } from '@capacitor/google-maps';
-import { Geolocation } from '@capacitor/geolocation';
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon, IonInput } from '@ionic/react';
-import { useHistory } from 'react-router-dom'; 
-import { notificationsOutline } from 'ionicons/icons';
-import './Home.css';
-
-// There is 3 different states for this page. This declares each state and sets default. See bellow change of states.
-type TripStatus = 'notstarted' | 'tripinformation' | 'traveling' | 'arrived';
-
-
-const HomePage = () => {
-const history = useHistory(); //History use to navigate to notifications page. 
-const [destinationInput, setDestinationInput] = useState('');
-const [tripStatus, setTripStatus] = useState<TripStatus>('notstarted'); // Default to 'notstarted' 
-
-//Map
-const mapRef = useRef<HTMLElement>(null); // Empty box
- useEffect(() => {
-    if (tripStatus === 'traveling' && mapRef.current) {
-      createMap();
-    }
-  }, [tripStatus]);
-
-  const createMap = async () => {
-    const position = await Geolocation.getCurrentPosition();
-
-    const newMap = await GoogleMap.create({
-      id: 'trip-map',
-      element: mapRef.current!,
-      apiKey: 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI',
-      config: {
-        center: {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        },
-        zoom: 15,
-      },
-    });
-      await newMap.addMarker({
-    coordinate: {
-      lat: position.coords.latitude,
-      lng: position.coords.longitude,
-    },
-    title: 'You',
-  });
-};
-
-
-  return (   
-
-    //Start navigation
->>>>>>> 37f46ced487005ef06d53ebf3fbc24924a1a6b5b
   <IonPage>
     <IonHeader>
       <IonToolbar>
@@ -139,12 +82,5 @@ const mapRef = useRef<HTMLElement>(null); // Empty box
     </IonContent>
   </IonPage>
 );
-<<<<<<< HEAD
 
 export default HomePage;
-=======
-};
-
-
-export default HomePage;
->>>>>>> 37f46ced487005ef06d53ebf3fbc24924a1a6b5b

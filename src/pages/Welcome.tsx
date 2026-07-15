@@ -33,7 +33,6 @@ const Welcome: React.FC = () => {
           
           {/* animated logo area */}
           <div style={logoWrapperStyle}>
-            {/* Se quitó el contenedor outerCircleStyle para eliminar el contorno */}
             <img 
               src={logoGris} 
               alt="SafeLink Logo" 
@@ -60,7 +59,6 @@ const Welcome: React.FC = () => {
               You're new? Sign up now
             </IonButton>
 
-            {/* ENLACE DE INICIAR SESIÓN */}
             <button
               type="button"
               onClick={() => history.push('/login')}
@@ -108,7 +106,7 @@ const mainContainerStyle: React.CSSProperties = {
   boxSizing: 'border-box'
 };
 
-// Cambiado de 1s a 2.5s para hacer la animación del logo más larga y fluida
+// animation
 const logoWrapperStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
