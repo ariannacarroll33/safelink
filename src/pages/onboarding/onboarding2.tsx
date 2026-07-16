@@ -5,7 +5,7 @@ import {
   contentBackgroundStyle, headerToolbarStyle, headerContainerStyle, 
   headerWelcomeTextStyle, mainContainerStyle, contentStyle, 
   iconContainerStyle, titleStyle, descriptionStyle, 
-  dotsContainerStyle, dotStyle, buttonContainerStyle, actionButtonStyle 
+  dotsContainerStyle, dotStyle, bottomContainerStyle, actionButtonStyle 
 } from './onboarding1';
 
 const Onboarding2: React.FC = () => {
@@ -26,7 +26,7 @@ const Onboarding2: React.FC = () => {
           
           <div style={contentStyle}>
             <div style={iconContainerStyle}>
-              <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#633A0E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="130" height="130" viewBox="0 0 24 24" fill="none" stroke="#633A0E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
               </svg>
@@ -46,7 +46,8 @@ const Onboarding2: React.FC = () => {
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
           </div>
 
-          <div style={buttonContainerStyle}>
+          {/* Bandeja inferior dorada idéntica a la foto */}
+          <div style={bottomContainerStyle}>
             <button 
               onClick={() => history.push('/onboarding3')} 
               style={actionButtonStyle}

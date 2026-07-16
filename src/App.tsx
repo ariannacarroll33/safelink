@@ -19,6 +19,7 @@ import Onboarding1 from './pages/onboarding/onboarding1';
 import Onboarding2 from './pages/onboarding/onboarding2';
 import Onboarding3 from './pages/onboarding/onboarding3';
 import Onboarding4 from './pages/onboarding/onboarding4';
+import EnterPasscode from './pages/enterPasscode';
 
 /* App styles & layout */
 import './theme/colours.css';
@@ -81,6 +82,8 @@ function App() {
           <Route exact path="/onboarding2" component={Onboarding2} />
           <Route exact path="/onboarding3" component={Onboarding3} />
           <Route exact path="/onboarding4" component={Onboarding4} />
+
+          <Route exact path="/enterPasscode" component={EnterPasscode} />
 
           {/* tabs */}
           <Route path="/tabs" render={() => (

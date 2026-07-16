@@ -5,7 +5,7 @@ import {
   contentBackgroundStyle, headerToolbarStyle, headerContainerStyle, 
   headerWelcomeTextStyle, mainContainerStyle, contentStyle, 
   iconContainerStyle, titleStyle, descriptionStyle, 
-  dotsContainerStyle, dotStyle, buttonContainerStyle, actionButtonStyle 
+  dotsContainerStyle, dotStyle, bottomContainerStyle, actionButtonStyle 
 } from './onboarding1';
 
 const Onboarding4: React.FC = () => {
@@ -25,10 +25,11 @@ const Onboarding4: React.FC = () => {
         <div style={mainContainerStyle}>
           
           <div style={contentStyle}>
+            {/* Icono S.O.S gigante adaptado */}
             <div style={iconContainerStyle}>
-              <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#633A0E" strokeWidth="1.5">
+              <svg width="130" height="130" viewBox="0 0 24 24" fill="none" stroke="#633A0E" strokeWidth="1.2">
                 <circle cx="12" cy="12" r="10" strokeLinecap="round" />
-                <text x="12" y="15" fill="#633A0E" fontSize="6" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">S.O.S</text>
+                <text x="12" y="15.5" fill="#633A0E" fontSize="5.5" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">S.O.S</text>
               </svg>
             </div>
 
@@ -46,9 +47,10 @@ const Onboarding4: React.FC = () => {
             <span style={{ ...dotStyle, backgroundColor: '#E6A937' }} />
           </div>
 
-          <div style={buttonContainerStyle}>
+          {/* Bandeja inferior dorada idéntica a la foto */}
+          <div style={bottomContainerStyle}>
             <button 
-              onClick={() => history.push('/home')} 
+              onClick={() => history.push('/enter-passcode')} 
               style={actionButtonStyle}
               type="button"
             >

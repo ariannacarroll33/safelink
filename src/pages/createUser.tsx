@@ -5,7 +5,6 @@ import {
   IonInput,
   IonButton,
   IonIcon,
-  IonNote,
   IonToast,
   IonItem,
   IonHeader,
@@ -28,9 +27,8 @@ import { useHistory } from 'react-router-dom';
 // FIREBASE INTEGRATION
 import { auth, db } from '../services/firebaseConfig';
 import { createUserWithEmailAndPassword, RecaptchaVerifier, linkWithPhoneNumber } from 'firebase/auth';
-import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
-// countries + number 
 const COUNTRIES = [
   { code: '+49', name: 'Germany', flag: '🇩🇪' },
   { code: '+54', name: 'Argentina', flag: '🇦🇷' },
@@ -69,14 +67,13 @@ const COUNTRIES = [
 ];
 
 const CreateUser: React.FC = () => {
+  const history = useHistory();
+
   const [name, setName] = useState<string>('');
   const [username, setUsername] = useState<string>('');
   const [email, setEmail] = useState<string>('');
-  
-  // prefix setting 
-  const [countryPrefix, setCountryPrefix] = useState<string>('+34'); // Por defecto España
+  const [countryPrefix, setCountryPrefix] = useState<string>('+34'); 
   const [phone, setPhone] = useState<string>('');
-  
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
 
@@ -85,48 +82,42 @@ const CreateUser: React.FC = () => {
 
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
-
   const [loading, setLoading] = useState<boolean>(false);
+  const [errors, setErrors] = useState<{ [key: string]: boolean }>({});
 
-  // real time password validation
   const [hasEightChars, setHasEightChars] = useState<boolean>(false);
   const [hasNumber, setHasNumber] = useState<boolean>(false);
   const [hasSpecialChar, setHasSpecialChar] = useState<boolean>(false);
 
-  const history = useHistory();
-
-  const requiredAsterisk = (
-    <span style={{ color: '#E6A937', marginLeft: '4px' }}>*</span>
-  );
-
-  // validation password settings 
   useEffect(() => {
     setHasEightChars(password.length >= 8);
     setHasNumber(/\d/.test(password));
     setHasSpecialChar(/[!@#$%^&*(),.?":{}|<>_+\-[\]/\\]/.test(password));
   }, [password]);
 
-  // see if password is valid (for requirements)
   const isPasswordValid = hasEightChars && hasNumber && hasSpecialChar;
 
-  // see contries summary
+  const isFormFullyValid = 
+    name.trim() !== '' && 
+    username.trim() !== '' && 
+    email.trim() !== '' && 
+    phone.trim() !== '' && 
+    password !== '' && 
+    confirmPassword !== '' && 
+    isPasswordValid && 
+    password === confirmPassword;
+
   const selectedCountry = COUNTRIES.find(c => c.code === countryPrefix) || COUNTRIES[11];
 
-  // start RECAPTCHA
   const setupRecaptcha = () => {
     try {
       if ((window as any).recaptchaVerifier) {
         (window as any).recaptchaVerifier.clear();
       }
-      
       (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible',
-        callback: () => {
-          console.log('ReCAPTCHA verified successfully.');
-        },
-        'expired-callback': () => {
-          alert('ReCAPTCHA expired. Please try again.');
-        }
+        callback: () => console.log('ReCAPTCHA verified successfully.'),
+        'expired-callback': () => alert('ReCAPTCHA expired. Please try again.')
       });
       return (window as any).recaptchaVerifier;
     } catch (err) {
@@ -134,83 +125,96 @@ const CreateUser: React.FC = () => {
     }
   };
 
-  // ⚡ register and send sms
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    const currentErrors: { [key: string]: boolean } = {};
 
-    // clean data
-    const cleanUsername = username.trim().toLowerCase().replace(/^@/, '');
-    const cleanPhoneDigits = phone.replace(/\s+/g, ''); 
-    const fullPhoneNumber = `${countryPrefix}${cleanPhoneDigits}`;
+    if (!name.trim()) currentErrors.name = true;
+    if (!username.trim()) currentErrors.username = true;
+    if (!email.trim()) currentErrors.email = true;
+    if (!phone.trim()) currentErrors.phone = true;
+    if (!password) currentErrors.password = true;
+    if (!confirmPassword) currentErrors.confirmPassword = true;
 
-    if (!name || !cleanUsername || !email || !cleanPhoneDigits || !password || !confirmPassword) {
-      setToastMessage('Please fill in all required fields.');
+    if (Object.keys(currentErrors).length > 0) {
+      setErrors(currentErrors);
+      setToastMessage('Please fill in all required highlighted fields.');
       setShowToast(true);
       return;
     }
 
-    // strict verification password 
+    const cleanUsername = username.trim().toLowerCase().replace(/^@/, '');
+    const cleanPhoneDigits = phone.replace(/\s+/g, ''); 
+    const fullPhoneNumber = `${countryPrefix}${cleanPhoneDigits}`;
+
     if (!isPasswordValid) {
+      currentErrors.password = true;
+      setErrors(currentErrors);
       setToastMessage('Password does not meet all security requirements.');
       setShowToast(true);
       return;
     }
 
     if (password !== confirmPassword) {
+      currentErrors.confirmPassword = true;
+      setErrors(currentErrors);
       setToastMessage('Passwords do not match.');
       setShowToast(true);
       return;
     }
 
+    setErrors({});
+
     try {
       setLoading(true);
 
-      // verfication username is unique 
+      // Check unique username
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where('username', '==', cleanUsername));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
         setLoading(false);
+        currentErrors.username = true;
+        setErrors(currentErrors);
         setToastMessage('This username is already taken. Please choose another.');
         setShowToast(true);
         return;
       }
 
       const appVerifier = setupRecaptcha();
-      if (!appVerifier) {
-        throw new Error('Could not initialize security validator.');
-      }
+      if (!appVerifier) throw new Error('Could not initialize security validator.');
 
-      // create email and password 
+      // Create Authentication account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // send sms 
+      // Link phone number via SMS
       console.log('Sending real SMS to:', fullPhoneNumber);
       const confirmationResult = await linkWithPhoneNumber(user, fullPhoneNumber, appVerifier);
       (window as any).confirmationResult = confirmationResult;
 
-      // save in firestore 
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        fullName: name,
-        username: cleanUsername,
-        email: email,
-        mobilePhone: fullPhoneNumber,
-        createdAt: new Date().toISOString()
-      });
-
       setLoading(false);
-      history.push('/verificationCode', { phone: fullPhoneNumber });
+
+      // Push all fresh user profile data to the verification screen
+      history.push('/verificationCode', { 
+        phone: fullPhoneNumber,
+        userData: {
+          uid: user.uid,
+          fullName: name,
+          username: cleanUsername,
+          email: email
+        }
+      });
 
     } catch (error: any) {
       setLoading(false);
       console.error('Error detected:', error);
-      
       if (error.code === 'auth/email-already-in-use') {
+        setErrors({ email: true });
         setToastMessage('This email address is already registered.');
       } else if (error.code === 'auth/invalid-email') {
+        setErrors({ email: true });
         setToastMessage('The email address format is invalid.');
       } else if (error.code === 'auth/sms-quota-exceeded') {
         setToastMessage('SMS daily limit exceeded. Please try again tomorrow.');
@@ -221,9 +225,16 @@ const CreateUser: React.FC = () => {
     }
   };
 
+  const getBoxStyle = (fieldName: string) => {
+    return {
+      ...boxStyle,
+      border: errors[fieldName] ? '2px solid #FF3B30' : '1px solid #999999',
+      transition: 'border 0.2s ease-in-out'
+    };
+  };
+
   return (
     <IonPage>
-      {/* yellow-400 font for the countries selection page */}
       <style>{`
         ion-action-sheet.custom-country-select-sheet {
           --background: var(--yellow-400) !important;
@@ -231,33 +242,20 @@ const CreateUser: React.FC = () => {
           --button-background-selected: var(--yellow-500) !important;
           --button-color: var(--black) !important;
         }
-
         .custom-country-select-sheet .action-sheet-container,
         .custom-country-select-sheet .action-sheet-group {
           background-color: var(--yellow-400) !important;
-          background: var(--yellow-400) !important;
         }
-
         .custom-country-select-sheet .action-sheet-button {
           --background: var(--yellow-400) !important;
-          background-color: var(--yellow-400) !important;
-          background: var(--yellow-400) !important;
           color: var(--black) !important;
           font-weight: 600 !important;
           border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
         }
-
         .custom-country-select-sheet .action-sheet-button.action-sheet-cancel {
           --background: var(--yellow-600) !important;
-          background-color: var(--yellow-600) !important;
-          background: var(--yellow-600) !important;
           color: var(--white) !important;
           font-weight: bold !important;
-        }
-        
-        .custom-country-select-sheet .action-sheet-button.activated {
-          background-color: var(--yellow-500) !important;
-          background: var(--yellow-500) !important;
         }
       `}</style>
 
@@ -274,7 +272,6 @@ const CreateUser: React.FC = () => {
       </IonHeader>
 
       <IonContent className="ion-padding" style={contentBackgroundStyle}>
-
         <IonToast
           isOpen={showToast}
           onDidDismiss={() => setShowToast(false)}
@@ -286,230 +283,166 @@ const CreateUser: React.FC = () => {
         <div id="recaptcha-container"></div>
 
         <div style={{ textAlign: 'center', margin: '30px 0 25px 0' }}>
-          <h1 style={{ fontSize: '26px', fontWeight: '700', color: '#633A0E' }}>
-            Create your User
-          </h1>
+          <h1 style={{ fontSize: '26px', fontWeight: '700', color: '#633A0E' }}>Create your User</h1>
         </div>
 
         <form onSubmit={handleCreateUser} style={{ padding: '0 10px', paddingBottom: '30px' }}>
-
-          {/* YOUR NAME */}
           <div style={{ marginBottom: '14px' }}>
-            <div style={labelStyle}>Your Name {requiredAsterisk}</div>
-            <div style={boxStyle}>
+            <div style={labelStyle}>Your Name <span style={{ color: '#E6A937' }}>*</span></div>
+            <div style={getBoxStyle('name')}>
               <IonItem lines="none" style={itemStyle}>
                 <IonIcon slot="start" icon={personAddOutline} style={{ color: '#999' }} />
                 <IonInput
                   value={name}
-                  onIonChange={(e) => setName(e.detail.value || '')}
+                  onIonInput={(e) => {
+                    setName(e.detail.value || '');
+                    if(errors.name) setErrors({...errors, name: false});
+                  }}
                   placeholder="e.g. Betty Higgs"
                 />
               </IonItem>
             </div>
           </div>
 
-          {/* USERNAME */}
           <div style={{ marginBottom: '14px' }}>
-            <div style={labelStyle}>Username {requiredAsterisk}</div>
-            <div style={boxStyle}>
+            <div style={labelStyle}>Username <span style={{ color: '#E6A937' }}>*</span></div>
+            <div style={getBoxStyle('username')}>
               <IonItem lines="none" style={itemStyle}>
                 <IonInput
                   value={username}
-                  onIonChange={(e) => setUsername(e.detail.value || '')}
+                  onIonInput={(e) => {
+                    setUsername(e.detail.value || '');
+                    if(errors.username) setErrors({...errors, username: false});
+                  }}
                   placeholder="@userexample"
                 />
               </IonItem>
             </div>
           </div>
 
-          {/* EMAIL */}
           <div style={{ marginBottom: '14px' }}>
-            <div style={labelStyle}>Email Address {requiredAsterisk}</div>
-            <div style={boxStyle}>
+            <div style={labelStyle}>Email Address <span style={{ color: '#E6A937' }}>*</span></div>
+            <div style={getBoxStyle('email')}>
               <IonItem lines="none" style={itemStyle}>
                 <IonIcon slot="start" icon={mailOutline} style={{ color: '#999' }} />
                 <IonInput
                   type="email"
                   value={email}
-                  onIonChange={(e) => setEmail(e.detail.value || '')}
+                  onIonInput={(e) => {
+                    setEmail(e.detail.value || '');
+                    if(errors.email) setErrors({...errors, email: false});
+                  }}
                   placeholder="name@example.com"
                 />
               </IonItem>
             </div>
           </div>
 
-          {/* PHONE FIELD */}
           <div style={{ marginBottom: '14px' }}>
-            <div style={labelStyle}>Mobile Phone {requiredAsterisk}</div>
-            
+            <div style={labelStyle}>Mobile Phone <span style={{ color: '#E6A937' }}>*</span></div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-              
-              {/* dynamic countries selector */}
               <div style={{ 
-                ...boxStyle, 
-                marginTop: 0, 
-                minWidth: '110px', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                position: 'relative',
-                padding: '2px 8px'
+                ...boxStyle, marginTop: 0, minWidth: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                position: 'relative', padding: '2px 8px', border: errors.phone ? '2px solid #FF3B30' : '1px solid #999999'
               }}>
-                {/* visual display */}
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '6px',
-                  fontSize: '15px', 
-                  fontWeight: '600', 
-                  color: '#000000',
-                  pointerEvents: 'none',
-                  whiteSpace: 'nowrap'
-                }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', fontWeight: '600', color: '#000' }}>
                   <span>{selectedCountry.flag}</span>
                   <span>{selectedCountry.code}</span>
                 </div>
-
-                {/* ionic select */}
                 <IonSelect 
                   value={countryPrefix} 
                   onIonChange={(e) => setCountryPrefix(e.detail.value)}
                   interface="action-sheet" 
-                  interfaceOptions={{
-                    cssClass: 'custom-country-select-sheet'
-                  }}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    opacity: 0,
-                    pointerEvents: 'auto'
-                  }}
+                  interfaceOptions={{ cssClass: 'custom-country-select-sheet' }}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0 }}
                 >
-                  {COUNTRIES.map((country, index) => {
-                    const listLabel = `${country.flag} ${country.code} - ${country.name}`;
-                    return (
-                      <IonSelectOption key={index} value={country.code}>
-                        {listLabel}
-                      </IonSelectOption>
-                    );
-                  })}
+                  {COUNTRIES.map((country, idx) => (
+                    <IonSelectOption key={idx} value={country.code}>
+                      {country.flag} {country.code} - {country.name}
+                    </IonSelectOption>
+                  ))}
                 </IonSelect>
               </div>
 
-              {/* input number  */}
-              <div style={{ ...boxStyle, marginTop: 0, flexGrow: 1 }}>
+              <div style={{ ...getBoxStyle('phone'), marginTop: 0, flexGrow: 1 }}>
                 <IonItem lines="none" style={itemStyle}>
                   <IonInput
                     type="tel"
                     value={phone}
-                    onIonChange={(e) => setPhone(e.detail.value || '')}
+                    onIonInput={(e) => {
+                      setPhone(e.detail.value || '');
+                      if(errors.phone) setErrors({...errors, phone: false});
+                    }}
                     placeholder="600 000 000" 
                   />
                 </IonItem>
               </div>
-
             </div>
           </div>
 
-          {/* PASSWORD */}
           <div style={{ marginBottom: '14px' }}>
-            <div style={labelStyle}>Create Password {requiredAsterisk}</div>
-            <div style={boxStyle}>
+            <div style={labelStyle}>Create Password <span style={{ color: '#E6A937' }}>*</span></div>
+            <div style={getBoxStyle('password')}>
               <IonItem lines="none" style={itemStyle}>
                 <IonIcon slot="start" icon={lockClosedOutline} style={{ color: '#999' }} />
                 <IonInput
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onIonChange={(e) => setPassword(e.detail.value || '')}
+                  onIonInput={(e) => {
+                    setPassword(e.detail.value || '');
+                    if(errors.password) setErrors({...errors, password: false});
+                  }}
                 />
-                <IonIcon
-                  slot="end"
-                  icon={showPassword ? eyeOutline : eyeOffOutline}
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{ cursor: 'pointer', color: '#666' }}
-                />
+                <IonIcon slot="end" icon={showPassword ? eyeOutline : eyeOffOutline} onClick={() => setShowPassword(!showPassword)} style={{ cursor: 'pointer' }} />
               </IonItem>
             </div>
           </div>
 
-          {/* dynamic rules */}
           <div style={{ padding: '0 4px', marginBottom: '14px' }}>
-            <div style={{ fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>
-              Password Requirements:
-            </div>
+            <div style={{ fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px' }}>Password Requirements:</div>
             <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px' }}>
-              <li style={{ 
-                color: hasEightChars ? '#A05C1B' : '#999999', 
-                transition: 'color 0.3s ease',
-                fontWeight: hasEightChars ? '700' : '500' 
-              }}>
-                At least 8 characters long
-              </li>
-              <li style={{ 
-                color: hasNumber ? '#A05C1B' : '#999999', 
-                transition: 'color 0.3s ease',
-                fontWeight: hasNumber ? '700' : '500' 
-              }}>
-                At least one number
-              </li>
-              <li style={{ 
-                color: hasSpecialChar ? '#A05C1B' : '#999999', 
-                transition: 'color 0.3s ease',
-                fontWeight: hasSpecialChar ? '700' : '500' 
-              }}>
-                At least one special character (e.g., !@#$%)
-              </li>
+              <li style={{ color: hasEightChars ? '#A05C1B' : '#999', fontWeight: hasEightChars ? '700' : '500' }}>At least 8 characters long</li>
+              <li style={{ color: hasNumber ? '#A05C1B' : '#999', fontWeight: hasNumber ? '700' : '500' }}>At least one number</li>
+              <li style={{ color: hasSpecialChar ? '#A05C1B' : '#999', fontWeight: hasSpecialChar ? '700' : '500' }}>At least one special character</li>
             </ul>
           </div>
 
-          {/* CONFIRM PASSWORD */}
           <div style={{ marginTop: '14px', marginBottom: '28px' }}>
-            <div style={labelStyle}>Confirm Password {requiredAsterisk}</div>
-            <div style={boxStyle}>
+            <div style={labelStyle}>Confirm Password <span style={{ color: '#E6A937' }}>*</span></div>
+            <div style={getBoxStyle('confirmPassword')}>
               <IonItem lines="none" style={itemStyle}>
                 <IonIcon slot="start" icon={lockClosedOutline} style={{ color: '#999' }} />
                 <IonInput
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
-                  onIonChange={(e) => setConfirmPassword(e.detail.value || '')}
+                  onIonInput={(e) => {
+                    setConfirmPassword(e.detail.value || '');
+                    if(errors.confirmPassword) setErrors({...errors, confirmPassword: false});
+                  }}
                 />
-                <IonIcon
-                  slot="end"
-                  icon={showConfirmPassword ? eyeOutline : eyeOffOutline}
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={{ cursor: 'pointer', color: '#666' }}
-                />
+                <IonIcon slot="end" icon={showConfirmPassword ? eyeOutline : eyeOffOutline} onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ cursor: 'pointer' }} />
               </IonItem>
             </div>
           </div>
 
-          {/* BUTTON */}
           <IonButton
             expand="block"
             type="submit"
-            disabled={loading || !isPasswordValid}
+            disabled={loading}
             style={{
-              '--background': isPasswordValid ? '#E6A937' : '#D4C3A3',
-              '--color': '#FFFFFF',
-              '--border-radius': '25px',
-              height: '50px',
-              fontWeight: 'bold',
-              fontSize: '16px'
+              '--background': isFormFullyValid ? '#E6A937' : '#F7E2B4',
+              '--color': isFormFullyValid ? '#FFFFFF' : '#A08E70',
+              '--border-radius': '25px', height: '50px', fontWeight: 'bold', fontSize: '16px'
             }}
           >
-            {loading ? 'Sending SMS Code...' : 'Sign Up'}
+            {loading ? 'Next...' : 'Sign Up'}
           </IonButton>
-
         </form>
       </IonContent>
     </IonPage>
   );
 };
 
-/* styles */
 const contentBackgroundStyle = { '--background': '#FFEBB7' };
 const headerToolbarStyle = { '--background': '#E5A93C', '--border-width': '0' };
 const headerFlexContainer: React.CSSProperties = { height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' };

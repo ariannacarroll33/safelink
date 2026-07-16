@@ -42,6 +42,15 @@ const VerificationCode: React.FC = () => {
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
 
+  // Controla qué método está expandido visualmente ('sms' | 'google' | 'apple' | null)
+  const [activeMethod, setActiveMethod] = useState<'sms' | 'google' | 'apple' | null>('sms');
+
+  // Función para limpiar por completo el panel de SMS si se cambia de opción
+  const resetSMSState = () => {
+    setSmsSent(false);
+    setVerificationCode('');
+  };
+
   // 1. INITIALIZE INVISIBLE RECAPTCHA FOR SMS
   const setupRecaptcha = () => {
     try {
@@ -61,6 +70,7 @@ const VerificationCode: React.FC = () => {
 
   // 💬 OPTION A: SEND SMS
   const handleSendSMS = async () => {
+    setActiveMethod('sms'); // Asegura que el método activo es SMS
     const currentUser = auth.currentUser;
     if (!currentUser) {
       setToastMessage('User session not found. Please register again.');
@@ -135,6 +145,10 @@ const VerificationCode: React.FC = () => {
 
   // 🚀 OPTION B: VERIFY/LINK WITH GOOGLE POPUP
   const handleVerifyWithGoogle = async () => {
+    // Si pulsa aquí, hacemos desaparecer los huecos del SMS al instante
+    setActiveMethod('google');
+    resetSMSState();
+
     const currentUser = auth.currentUser;
     if (!currentUser) {
       setToastMessage('Session not active. Please register first.');
@@ -173,6 +187,10 @@ const VerificationCode: React.FC = () => {
 
   // 🍏 OPTION C: VERIFY/LINK WITH APPLE POPUP
   const handleVerifyWithApple = async () => {
+    // Si pulsa aquí, hacemos desaparecer los huecos del SMS al instante
+    setActiveMethod('apple');
+    resetSMSState();
+
     const currentUser = auth.currentUser;
     if (!currentUser) {
       setToastMessage('Session not active. Please register first.');
@@ -246,12 +264,14 @@ const VerificationCode: React.FC = () => {
 
         {/* ================= SMS SECTION ================= */}
         <div style={sectionBoxStyle}>
-          <h3 style={sectionTitleStyle}>
+          {/* Fusión limpia del estilo solucionando el error anterior */}
+          <h3 onClick={() => setActiveMethod('sms')} style={{ ...sectionTitleStyle, cursor: 'pointer' }}>
             <IonIcon icon={chatbubbleOutline} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
             Option 1: Verify via SMS
           </h3>
           
-          {!smsSent ? (
+          {/* Si el método activo es SMS y aún no se envía el código */}
+          {activeMethod === 'sms' && !smsSent && (
             <div>
               <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
                 We will send a validation code to: <strong>{phone || 'unspecified number'}</strong>
@@ -265,7 +285,10 @@ const VerificationCode: React.FC = () => {
                 {loading ? 'Sending...' : 'Send Code via SMS'}
               </IonButton>
             </div>
-          ) : (
+          )}
+
+          {/* Si el código ya se envió Y el método activo sigue siendo SMS, se muestran los 6 huecos */}
+          {activeMethod === 'sms' && smsSent && (
             <form onSubmit={handleVerifyCode}>
               <p style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>
                 Enter the 6-digit code received:
@@ -275,8 +298,9 @@ const VerificationCode: React.FC = () => {
                   <IonInput
                     type="number"
                     value={verificationCode}
-                    onIonChange={(e) => setVerificationCode(e.detail.value || '')}
+                    onIonInput={(e) => setVerificationCode(e.detail.value || '')}
                     placeholder="123456"
+                    maxlength={6}
                     style={{ textAlign: 'center', fontSize: '18px', letterSpacing: '4px' }}
                   />
                 </IonItem>
@@ -292,13 +316,26 @@ const VerificationCode: React.FC = () => {
                 </IonButton>
                 <IonButton 
                   fill="outline"
-                  onClick={() => setSmsSent(false)}
+                  onClick={() => resetSMSState()}
                   style={{ '--border-radius': '10px', '--color': '#E6A937', '--border-color': '#E6A937' }}
                 >
                   Change Method
                 </IonButton>
               </div>
             </form>
+          )}
+
+          {/* Si el usuario seleccionó otro método (Google/Apple), mostramos un botón discreto para volver al flujo SMS */}
+          {activeMethod !== 'sms' && (
+            <IonButton 
+              fill="clear" 
+              expand="block"
+              size="small"
+              onClick={() => setActiveMethod('sms')}
+              style={{ '--color': '#E6A937', fontWeight: '600', margin: '4px 0 0 0' }}
+            >
+              Use SMS Verification instead
+            </IonButton>
           )}
         </div>
 
@@ -328,7 +365,7 @@ const VerificationCode: React.FC = () => {
             style={{
               height: '50px',
               borderRadius: '12px',
-              border: '1px solid #999999',
+              border: activeMethod === 'google' ? '2px solid #E6A937' : '1px solid #999999',
               backgroundColor: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
@@ -338,7 +375,8 @@ const VerificationCode: React.FC = () => {
               fontSize: '15px',
               cursor: 'pointer',
               color: '#000000',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+              transition: 'border 0.2s ease'
             }}
           >
             <IonIcon icon={logoGoogle} style={{ color: '#EA4335', fontSize: '20px' }} />
@@ -353,7 +391,7 @@ const VerificationCode: React.FC = () => {
             style={{
               height: '50px',
               borderRadius: '12px',
-              border: '1px solid #000000',
+              border: activeMethod === 'apple' ? '2px solid #E6A937' : '1px solid #000000',
               backgroundColor: '#000000',
               display: 'flex',
               alignItems: 'center',
@@ -363,7 +401,8 @@ const VerificationCode: React.FC = () => {
               fontSize: '15px',
               cursor: 'pointer',
               color: '#FFFFFF',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              transition: 'border 0.2s ease'
             }}
           >
             <IonIcon icon={logoApple} style={{ color: '#FFFFFF', fontSize: '20px' }} />
