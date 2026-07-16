@@ -44,8 +44,9 @@ function App() {
       <IonReactRouter> 
         <IonRouterOutlet>
           
+          {/* Ruta Inicial por defecto redirige a Welcome */}
           <Route exact path="/">
-            <Welcome />
+            <Redirect to="/welcome" />
           </Route> 
 
           <Route exact path="/welcome">
@@ -65,18 +66,23 @@ function App() {
           </Route>
 
           <Route path="/login" exact={true}>
-          <Login />
+            <Login />
           </Route>
 
           <Route path="/forgot-password" exact={true}>
-          <ForgotPassword />
+            <ForgotPassword />
           </Route>
 
+          {/* onboarding routes */}
+          <Route exact path="/onboarding">
+            <Redirect to="/onboarding1" />
+          </Route>
           <Route exact path="/onboarding1" component={Onboarding1} />
-        <Route exact path="/onboarding2" component={Onboarding2} />
-        <Route exact path="/onboarding3" component={Onboarding3} />
-        <Route exact path="/onboarding4" component={Onboarding4} />
+          <Route exact path="/onboarding2" component={Onboarding2} />
+          <Route exact path="/onboarding3" component={Onboarding3} />
+          <Route exact path="/onboarding4" component={Onboarding4} />
 
+          {/* tabs */}
           <Route path="/tabs" render={() => (
             <IonTabs>
               <IonRouterOutlet>
@@ -112,6 +118,7 @@ function App() {
             </IonTabs>
           )} />
 
+          {/* redicrection tabs */}
           <Route exact path="/home">
             <Redirect to="/tabs/home" />
           </Route>
@@ -125,16 +132,6 @@ function App() {
             <Redirect to="/tabs/more" />
           </Route>
 
-{/* Redirección por defecto si entran a /onboarding */}
-        <Route exact path="/onboarding">
-          <Redirect to="/onboarding1" />
-        </Route>
-
-        <Route exact path="/home" component={Home} />
-        <Route exact path="/">
-          <Redirect to="/onboarding" />
-        </Route>
-        
         </IonRouterOutlet>
       </IonReactRouter>
     </IonApp>
