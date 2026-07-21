@@ -1,3 +1,4 @@
+/// <reference path="../custom-elements.d.ts" />
 import React, {useState} from 'react';
 import { useEffect, useRef } from 'react';
 import { GoogleMap } from '@capacitor/google-maps';
@@ -16,37 +17,78 @@ const history = useHistory(); //History use to navigate to notifications page.
 const [destinationInput, setDestinationInput] = useState('');
 const [tripStatus, setTripStatus] = useState<TripStatus>('notstarted'); // Default to 'notstarted' 
 
-//Map
+
+//Start of Map
 const mapRef = useRef<HTMLElement>(null); // Empty box
+const googleMapRef = useRef<GoogleMap | null>(null); // NEW — holds the map instance so watchPosition can update it later
+const watchIdRef = useRef<string | null>(null);       // NEW — holds the watch ID so we can cancel it on cleanup
+
  useEffect(() => {
     if (tripStatus === 'traveling' && mapRef.current) {
       createMap();
     }
+
+        // Stops watching the position when the component unmounts or when tripStatus changes.
+    return () => {
+      if (watchIdRef.current) {
+        Geolocation.clearWatch({ id: watchIdRef.current });
+        watchIdRef.current = null;
+      }
+    };
   }, [tripStatus]);
 
-  const createMap = async () => {
-    const position = await Geolocation.getCurrentPosition();
 
-    const newMap = await GoogleMap.create({
-      id: 'trip-map',
-      element: mapRef.current!,
-      apiKey: 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI',
-      config: {
-        center: {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        },
-        zoom: 15,
-      },
+const createMap = async () => {
+  if (!mapRef.current) return;
+
+      // Asks permission to use location. Pop up.
+    const permission = await Geolocation.requestPermissions();
+    if (permission.location !== 'granted' && permission.coarseLocation !== 'granted') {
+      console.error('Location permission was not granted');
+      return;
+    }
+
+    const currentPosition = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
     });
-      await newMap.addMarker({
-    coordinate: {
-      lat: position.coords.latitude,
-      lng: position.coords.longitude,
+
+  const newMap = await GoogleMap.create({
+    id: 'trip-map',
+    element: mapRef.current,
+    apiKey: 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI',
+    config: {
+        center: {
+          lat: currentPosition.coords.latitude,  
+          lng: currentPosition.coords.longitude, 
+        },
+      zoom: 8,
     },
-    title: 'You',
   });
+
+      googleMapRef.current = newMap; // NEW
+
+          // you blue dot
+    await newMap.enableCurrentLocation(true);
+
+    // Tracking throughout; Not just showing position once.
+    const watchId = await Geolocation.watchPosition(
+      { enableHighAccuracy: true },
+      (position, err) => {
+        if (err || !position || !googleMapRef.current) return;
+
+        googleMapRef.current.setCamera({
+          coordinate: {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          },
+          animate: true,
+        });
+      }
+    );
+    watchIdRef.current = watchId;
 };
+//End of Map
+
 
 
   return (   
@@ -84,6 +126,7 @@ const mapRef = useRef<HTMLElement>(null); // Empty box
   </div>
 )}
 
+{/* CHANGE OF STATE */}
 {tripStatus === 'tripinformation' && (
   <div
     style={{
@@ -105,15 +148,15 @@ const mapRef = useRef<HTMLElement>(null); // Empty box
   </div>
 )}
 
-{/* Trip happening. */}
+{/* CHANGE OF STATE */}
 {tripStatus === 'traveling' && (
   <capacitor-google-map
     ref={mapRef}
     
     style={{
       display: 'inline-block',
-      width: '100%',
-      height: '100%',
+      width: '500px',
+      height: '500px',
     }}
   ></capacitor-google-map>
 )}
