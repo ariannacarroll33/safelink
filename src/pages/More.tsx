@@ -24,7 +24,7 @@ const MorePage = () => {
       {/* End of Navigation bar */}
 
 
-      <IonContent>
+      <IonContent className="page-background">
         <div
           style={{
             display: 'flex',
