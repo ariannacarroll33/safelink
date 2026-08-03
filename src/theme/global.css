@@ -1,0 +1,4 @@
+.page-background {
+  --background: url('/img/backgroundcity.svg') no-repeat center center / cover,
+                var(--ion-background-color);
+}

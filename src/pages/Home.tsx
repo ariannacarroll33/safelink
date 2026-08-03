@@ -3,9 +3,11 @@ import React, {useState} from 'react';
 import { useEffect, useRef } from 'react';
 import { GoogleMap } from '@capacitor/google-maps';
 import { Geolocation } from '@capacitor/geolocation';
+import polyline from '@mapbox/polyline';
 import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon, IonInput } from '@ionic/react';
 import { useHistory } from 'react-router-dom'; 
 import { notificationsOutline } from 'ionicons/icons';
+import '../theme/global.css';
 import './Home.css';
 
 // There is 3 different states for this page. This declares each state and sets default. See bellow change of states.
@@ -16,6 +18,7 @@ const HomePage = () => {
 const history = useHistory(); //History use to navigate to notifications page. 
 const [destinationInput, setDestinationInput] = useState('');
 const [tripStatus, setTripStatus] = useState<TripStatus>('notstarted'); // Default to 'notstarted' 
+const [eta, setEta] = useState('');
 
 
 //Start of Map
@@ -40,6 +43,7 @@ const watchIdRef = useRef<string | null>(null);       // NEW — holds the watch
 
 const createMap = async () => {
   if (!mapRef.current) return;
+
 
       // Asks permission to use location. Pop up.
     const permission = await Geolocation.requestPermissions();
@@ -67,10 +71,16 @@ const createMap = async () => {
 
       googleMapRef.current = newMap; // NEW
 
+      await getDirections(
+        { lat: currentPosition.coords.latitude, lng: currentPosition.coords.longitude },
+        destinationInput
+      );
+
           // you blue dot
     await newMap.enableCurrentLocation(true);
 
-    // Tracking throughout; Not just showing position once.
+
+// NEW Tracking throughout; Not just showing position once.
     const watchId = await Geolocation.watchPosition(
       { enableHighAccuracy: true },
       (position, err) => {
@@ -86,6 +96,40 @@ const createMap = async () => {
       }
     );
     watchIdRef.current = watchId;
+};
+
+const getDirections = async (
+  origin: { lat: number; lng: number },
+  destination: string
+) => {
+  const apiKey = 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI'; // use your real key
+  const originStr = `${origin.lat},${origin.lng}`;
+  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${encodeURIComponent(destination)}&key=${apiKey}`;
+
+  const response = await fetch(url);
+  const data = await response.json();
+
+  if (!data.routes || data.routes.length === 0) {
+    console.error('No route found', data);
+    return;
+  }
+
+  const route = data.routes[0];
+  const points = route.overview_polyline.points;
+  const etaText = route.legs[0].duration.text;
+
+  const decodedPoints = polyline.decode(points);
+  const path = decodedPoints.map(([lat, lng]) => ({ lat, lng }));
+
+  await googleMapRef.current?.addPolylines([
+    {
+      path,
+      strokeColor: '#2563eb',
+      strokeWeight: 4,
+    },
+  ]);
+
+  setEta(etaText);
 };
 //End of Map
 
@@ -105,7 +149,7 @@ const createMap = async () => {
           </IonButtons>
       </IonToolbar>
     </IonHeader>
-    <IonContent>
+    <IonContent className="page-background">
       {/* End of navigation bar. Top and bottom. */}
       
 
@@ -119,8 +163,7 @@ const createMap = async () => {
       height: '100%',
     }}
   >
-    Home content (not started state)
-      <IonButton onClick={() => setTripStatus('tripinformation')}>
+      <IonButton className="start-button" onClick={() => setTripStatus('tripinformation')}>
       Start Trip
     </IonButton>
   </div>
