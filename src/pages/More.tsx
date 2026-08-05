@@ -1,14 +1,11 @@
 import React from 'react';
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
+import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon } from '@ionic/react';
 import { notificationsOutline } from 'ionicons/icons';
 
 const MorePage = () => {
-
-  
-  //Start of Navigation bar. Top and bottom.
   const history = useHistory();
-  //History use to navigate to notifications page. 
+
   return (
     <IonPage>
       <IonHeader>
@@ -21,8 +18,6 @@ const MorePage = () => {
           </IonButtons>
         </IonToolbar>
       </IonHeader>
-      {/* End of Navigation bar */}
-
 
       <IonContent className="page-background">
         <div
@@ -39,6 +34,5 @@ const MorePage = () => {
     </IonPage>
   );
 };
-
 
 export default MorePage;

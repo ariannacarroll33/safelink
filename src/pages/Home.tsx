@@ -176,12 +176,7 @@ const getDirections = async (
   <IonPage>
     <IonHeader>
       <IonToolbar>
-        <IonTitle class="ion-text-center">Home</IonTitle>
-              <IonButtons slot="end">
-            <IonButton onClick={() => history.push('/notifications')}>
-              <IonIcon icon={notificationsOutline} />
-            </IonButton>
-          </IonButtons>
+        <IonTitle>Home</IonTitle>
       </IonToolbar>
     </IonHeader>
     <IonContent className="page-background">
@@ -199,7 +194,7 @@ const getDirections = async (
     }}
   >
       <IonButton className="start-button" onClick={() => setTripStatus('tripinformation')}>
-      Start Trip
+      Start Trip test
     </IonButton>
   </div>
 )}
@@ -267,7 +262,6 @@ const getDirections = async (
     </IonContent>
   </IonPage>
 );
-};
-
+}
 
 export default HomePage;
