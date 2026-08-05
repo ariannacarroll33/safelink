@@ -24,4 +24,20 @@ const YourLinkPage = () => (
 );
 
 
+      <IonContent className="page-background">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+          }}
+        >
+          Your Link content
+        </div>
+      </IonContent>
+    </IonPage>
+  );
+};
+
 export default YourLinkPage;

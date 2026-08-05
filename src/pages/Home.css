@@ -1,0 +1,10 @@
+.start-button {
+  --background: var(--yellow-500);
+  width: 200px;
+  height: 200px;
+  --border-radius: 50%;
+}
+
+.start-button::part(native) {
+  border: 7px solid var(--white);
+}

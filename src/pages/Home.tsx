@@ -9,7 +9,7 @@ const HomePage = () => (
         <IonTitle>Home</IonTitle>
       </IonToolbar>
     </IonHeader>
-    <IonContent>
+    <IonContent className="page-background">
       {/* End of navigation bar. Top and bottom. */}
       
 
@@ -23,13 +23,13 @@ const HomePage = () => (
       height: '100%',
     }}
   >
-    Home content (not started state)
-      <IonButton onClick={() => setTripStatus('tripinformation')}>
+      <IonButton className="start-button" onClick={() => setTripStatus('tripinformation')}>
       Start Trip
     </IonButton>
   </div>
 )}
 
+{/* CHANGE OF STATE */}
 {tripStatus === 'tripinformation' && (
   <div
     style={{
@@ -51,15 +51,15 @@ const HomePage = () => (
   </div>
 )}
 
-{/* Trip happening. */}
+{/* CHANGE OF STATE */}
 {tripStatus === 'traveling' && (
   <capacitor-google-map
     ref={mapRef}
     
     style={{
       display: 'inline-block',
-      width: '100%',
-      height: '100%',
+      width: '500px',
+      height: '500px',
     }}
   ></capacitor-google-map>
 )}
