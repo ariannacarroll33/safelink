@@ -1,6 +1,6 @@
 :root {
   /* Colour Palette */
-  --yellow-300: #FFE299;
+  --yellow-300: #ffa899;
   --yellow-400: #ECBF69;
   --yellow-500: #E6A937;
   --yellow-600: #A97D40;
@@ -31,5 +31,4 @@
   --ion-toolbar-background: var(--white);   
   --ion-toolbar-color: var(--black);       
   --ion-item-background: var(--white);      
---ion-tab-bar-color-selected: var(--yellow-500);  /* selected icon */
 }
