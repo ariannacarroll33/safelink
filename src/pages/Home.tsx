@@ -194,7 +194,7 @@ const getDirections = async (
     }}
   >
       <IonButton className="start-button" onClick={() => setTripStatus('tripinformation')}>
-      Start Trip
+      Start Trip test
     </IonButton>
   </div>
 )}
@@ -262,5 +262,6 @@ const getDirections = async (
     </IonContent>
   </IonPage>
 );
+}
 
 export default HomePage;

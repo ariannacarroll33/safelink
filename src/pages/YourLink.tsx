@@ -8,7 +8,7 @@ const YourLinkPage = () => (
         <IonTitle>Your Link</IonTitle>
       </IonToolbar>
     </IonHeader>
-    <IonContent>
+    <IonContent className="page-background">
       <div
         style={{
           display: 'flex',
@@ -22,22 +22,5 @@ const YourLinkPage = () => (
     </IonContent>
   </IonPage>
 );
-
-
-      <IonContent className="page-background">
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-          }}
-        >
-          Your Link content
-        </div>
-      </IonContent>
-    </IonPage>
-  );
-};
 
 export default YourLinkPage;
