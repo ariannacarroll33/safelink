@@ -8,6 +8,7 @@ import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonBu
 import { useHistory } from 'react-router-dom'; 
 import { notificationsOutline } from 'ionicons/icons';
 import '../theme/global.css';
+import '../theme/colours.css';
 import './Home.css';
 
 // There is 3 different states for this page. This declares each state and sets default. See bellow change of states.
@@ -32,11 +33,20 @@ const history = useHistory(); //History use to navigate to notifications page.
 const [destinationInput, setDestinationInput] = useState('');
 const [tripStatus, setTripStatus] = useState<TripStatus>('notstarted'); // Default to 'notstarted' 
 const [eta, setEta] = useState('');
+
+// Dropdown 
+const [predictions, setPredictions] = useState<{ description: string; place_id: string }[]>([]);
+const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 //Start of Map
 const mapRef = useRef<HTMLElement>(null); // HTML Element.Empty box. Filled later with google maps.
 const googleMapRef = useRef<GoogleMap | null>(null); // Googlemap object. Used later for directions & camera moving. Used with newmaps.
 const watchIdRef = useRef<string | null>(null); // String. NEW — holds the watch ID so we can cancel it on cleanup
 const destCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+// Polyline Refs
+const polylineIdsRef = useRef<string[]>([]);
+const routePathRef = useRef<{ lat: number; lng: number }[]>([]);
+const routeIndexRef = useRef(0);
 
 // When status traveling. If the map is not created, create it. 
  useEffect(() => {
@@ -53,9 +63,30 @@ const destCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
     };
   }, [tripStatus]);
 
+    // NEW — fetch predicted destinations from Google Places Autocomplete
+const fetchPredictions = async (input: string) => {
+  if (!input.trim()) {
+    setPredictions([]);
+    return;
+  }
+  const apiKey = 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI';
+  const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}`;
+
+  const res = await fetch(url);
+  const data = await res.json();
+  setPredictions(data.status === 'OK' ? data.predictions : []);
+};
+
+// NEW — debounce so we don't fetch on every keystroke
+const handleDestinationChange = (value: string) => {
+  setDestinationInput(value);
+  if (debounceRef.current) clearTimeout(debounceRef.current);
+  debounceRef.current = setTimeout(() => fetchPredictions(value), 300);
+};
 
 const createMap = async () => {
   if (!mapRef.current) return; //from null to current 
+
 
 
       // Required for Capacitor Geolocator plugin. Asks permission to use location. Pop up. requestPermission. 
@@ -80,7 +111,7 @@ const createMap = async () => {
           lat: currentPosition.coords.latitude,  
           lng: currentPosition.coords.longitude, 
         },
-      zoom: 8,
+      zoom: 18,
     },
   });
 
@@ -102,15 +133,39 @@ const createMap = async () => {
        maximumAge: 0 
       },
       (position, err) => {
-        if (err || !position || !googleMapRef.current) return;
+        if (err) { console.error('watchPosition error', err); return; }
+        if (!position || !googleMapRef.current) return;
 
         googleMapRef.current.setCamera({
           coordinate: {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           },
+          zoom: 18,
           animate: true,
         });
+
+        const currentPos = { lat: position.coords.latitude, lng: position.coords.longitude };
+        const path = routePathRef.current;
+        let idx = routeIndexRef.current;
+
+        while (idx < path.length - 1 && getDistanceMeters(currentPos, path[idx]) < 25) {
+          idx++;
+        }
+
+        if (idx > routeIndexRef.current) {
+          routeIndexRef.current = idx;
+
+          (async () => {
+            if (polylineIdsRef.current.length) {
+              await googleMapRef.current!.removePolylines(polylineIdsRef.current);
+            }
+            const newIds = await googleMapRef.current!.addPolylines([
+              { path: path.slice(idx), strokeColor: '#2563eb', strokeWeight: 4 },
+            ]);
+            polylineIdsRef.current = newIds ?? [];
+          })();
+        }
 
 
       // NEW — check if user has reached destination
@@ -156,13 +211,18 @@ const getDirections = async (
   const decodedPoints = polyline.decode(points);
   const path = decodedPoints.map(([lat, lng]) => ({ lat, lng }));
 
-  await googleMapRef.current?.addPolylines([
+    // store path
+    routePathRef.current = path;
+  routeIndexRef.current = 0;
+
+  const ids = await googleMapRef.current?.addPolylines([
     {
       path,
       strokeColor: '#2563eb',
       strokeWeight: 4,
     },
   ]);
+  if (ids) polylineIdsRef.current = ids;
 
   setEta(etaText);
 };
@@ -213,8 +273,26 @@ const getDirections = async (
     <IonInput
       placeholder="Enter destination"
       value={destinationInput}
-      onIonInput={(e) => setDestinationInput(e.detail.value!)}
+      onIonInput={(e) => handleDestinationChange(e.detail.value!)}
     />
+
+        {/* NEW — predicted destination dropdown */}
+    {predictions.length > 0 && (
+      <div className="prediction-list">
+        {predictions.map((p) => (
+          <div
+            key={p.place_id}
+            className="prediction-item"
+            onClick={() => {
+              setDestinationInput(p.description);
+              setPredictions([]);
+            }}
+          >
+            {p.description}
+          </div>
+        ))}
+      </div>
+    )}
     <IonButton onClick={() => setTripStatus('traveling')}>
       Begin
     </IonButton>

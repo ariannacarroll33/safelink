@@ -5,6 +5,8 @@ import {
   IonButton
 } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
+import '../theme/global.css';
+import '../theme/colours.css';
 
 // import svg logo
 import logoGris from '../assets/gris-safelink.svg';
@@ -66,6 +68,15 @@ const Welcome: React.FC = () => {
             >
               I'm already part of Safelink! Log In
             </button>
+        {/* TEMP DEV SKIP - remove before release */}
+        <button
+          type="button"
+          onClick={() => history.push('/home')}
+          style={devSkipButtonStyle}
+        >
+          [DEV] Skip to app
+        </button>
+
           </div>
 
         </div>
@@ -152,6 +163,18 @@ const logInLinkStyle: React.CSSProperties = {
   textDecoration: 'underline',
   cursor: 'pointer',
   padding: '10px'
+};
+
+const devSkipButtonStyle: React.CSSProperties = {
+  background: '#FF3B30',
+  border: 'none',
+  color: '#FFFFFF',
+  fontSize: '13px',
+  fontWeight: '700',
+  padding: '8px 16px',
+  borderRadius: '12px',
+  cursor: 'pointer',
+  marginTop: '10px'
 };
 
 export default Welcome;
