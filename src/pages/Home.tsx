@@ -7,8 +7,8 @@ import polyline from '@mapbox/polyline'; // Change string to corrdinates.
 import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon, IonInput } from '@ionic/react';
 import { useHistory } from 'react-router-dom'; 
 import { notificationsOutline } from 'ionicons/icons';
-import '../theme/global.css';
-import '../theme/colours.css';
+//import '../theme/global.css';
+//import '../theme/colours.css';
 import './Home.css';
 
 // There is 3 different states for this page. This declares each state and sets default. See bellow change of states.
@@ -236,7 +236,12 @@ const getDirections = async (
   <IonPage>
     <IonHeader>
       <IonToolbar>
-        <IonTitle>Home</IonTitle>
+        <IonTitle class="ion-text-center">Home</IonTitle>
+         <IonButtons slot="end">
+            <IonButton onClick={() => history.push('/notifications')}>
+              <IonIcon icon={notificationsOutline} />
+            </IonButton>
+          </IonButtons>
       </IonToolbar>
     </IonHeader>
     <IonContent className="page-background">
