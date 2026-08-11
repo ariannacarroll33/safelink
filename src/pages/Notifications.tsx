@@ -4,7 +4,7 @@ import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonBa
 const NotificationsPage = () => (
 
 
-    //Start of Navigation bar. Top and bottom.s
+    //Start of Navigation bar. Top and bottom.
   <IonPage>
     <IonHeader>
       <IonToolbar>
