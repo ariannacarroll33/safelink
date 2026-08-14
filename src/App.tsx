@@ -7,9 +7,10 @@ import { homeOutline, mapOutline, linkOutline, ellipsisHorizontalOutline } from 
 // Actual existing pages
 import Home from './pages/Home';
 import CreateUser from './pages/createUser'; 
-import MapsPage from './pages/Maps';      
+import MapsPage from './pages/Maps';    
 import YourLinkPage from './pages/YourLink'; 
 import MorePage from './pages/More';  
+import NotificationsPage from './pages/Notifications';
 import VerificationCode from './pages/verificationCode';
 import EmergencyContact from './pages/emergencyContact';
 import Welcome from './pages/Welcome';
@@ -20,6 +21,8 @@ import Onboarding2 from './pages/onboarding/onboarding2';
 import Onboarding3 from './pages/onboarding/onboarding3';
 import Onboarding4 from './pages/onboarding/onboarding4';
 import EnterPasscode from './pages/enterPasscode';
+
+
 
 /* App styles & layout */
 import './theme/colours.css';
@@ -34,7 +37,6 @@ import '@ionic/react/css/text-alignment.css';
 import '@ionic/react/css/text-transformation.css';
 import '@ionic/react/css/flex-utils.css';
 import '@ionic/react/css/display.css';
-import '@ionic/react/css/palettes/dark.system.css';
 import './theme/variables.css';
 
 setupIonicReact();
@@ -67,6 +69,7 @@ function App() {
           <Route exact path="/onboarding4" component={Onboarding4} />
 
           <Route exact path="/enterPasscode" component={EnterPasscode} />
+          <Route exact path="/notifications"><NotificationsPage /></Route>
 
           {/* Tabs */}
           <Route path="/tabs" render={() => (
