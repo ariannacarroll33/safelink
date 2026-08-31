@@ -8,3 +8,54 @@
 .start-button::part(native) {
   border: 7px solid var(--white);
 }
+
+.prediction-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: calc(100% - 32px);
+  background: var(--white);
+  border: 1px solid var(--grey-600);
+  border-radius: 12px;
+  margin-top: 4px;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.prediction-item {
+  padding: 12px 8px;
+  color: var(--grey-700);
+}
+
+.prediction-item:active {
+  background: var(--grey-600);
+}
+
+.box-container {
+  display: flex;
+  padding: 20px 16px 16px 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  align-self: stretch;
+
+  border-radius: 20px;
+  border: 1px solid var(--grey-600);
+  background: var(--grey-300);
+  box-shadow: 0 4px 4px 0 rgba(0, 0, 0, 0.25);
+}
+
+.box-container-text {
+  gap: 2px;
+  display: flex;
+  flex-direction: column;
+}
+
+
+.map-frame {
+  padding: 16px;
+  margin: 16px;
+  background-color: var(--white);
+  border: 1px solid var(--grey-700);
+  box-sizing: border-box;
+}
