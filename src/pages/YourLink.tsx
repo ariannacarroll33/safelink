@@ -27,6 +27,7 @@ const YourLinkPage = () => {
             justifyContent: 'center',
             height: '100%',
           }}
+          className="h1-semibold"
         >
           Your Link content
         </div>
