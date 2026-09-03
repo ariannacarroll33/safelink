@@ -1,0 +1,20 @@
+/* Outer button sizing & circular shape */
+.sos-button-off {
+  --background: var(--red-dark, #8b0000); /* Fallback color included */
+  width: 200px;
+  height: 200px;
+  --border-radius: 50%;
+}
+
+.sos-button-on {
+  --background: var(--grey-600, #555555); /* Fallback color included */
+  width: 200px;
+  height: 200px;
+  --border-radius: 50%;
+}
+
+/* White ring applied exclusively to the inner button element */
+.sos-button-off::part(native),
+.sos-button-on::part(native) {
+  border: 7px solid var(--white, #ffffff);
+}

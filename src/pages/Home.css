@@ -53,9 +53,9 @@
 
 
 .map-frame {
-  padding: 16px;
-  margin: 16px;
+  padding: 24px !important;
+  margin: 24px !important;
+  border: 5px solid red !important; /* Bright red border to verify link */
   background-color: var(--white);
-  border: 1px solid var(--grey-700);
   box-sizing: border-box;
 }
