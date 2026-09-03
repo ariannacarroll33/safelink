@@ -314,15 +314,35 @@ const getDirections = async (
 
 {/* CHANGE OF STATE */}
 {tripStatus === 'traveling' && (
-  <capacitor-google-map
-    ref={mapRef}
-    
-    style={{
-      display: 'inline-block',
-      width: '500px',
-      height: '500px',
-    }}
-  ></capacitor-google-map>
+  <div>
+    <div
+      style={{
+        margin: '16px',
+        padding: '0px',
+        backgroundColor: 'var(--white)',
+        border: '2px solid var(--yellow-700)',
+        borderRadius: '12px',
+        boxSizing: 'border-box',
+      }}
+    >
+      <capacitor-google-map
+        ref={mapRef}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: '400px',
+        }}
+      ></capacitor-google-map>
+    </div>
+
+    <IonButton 
+      className="large-button" 
+      onClick={() => setTripStatus('arrived')}
+      style={{ margin: '16px' }}
+    >
+      End Trip
+    </IonButton>
+  </div>
 )}
 
 
