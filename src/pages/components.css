@@ -1,0 +1,30 @@
+
+.field-box {
+    position: relative;
+  display: flex;
+  width: calc(100% - 32px);
+  padding: 4px 8px;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+
+  border-radius: 12px;
+  border: 1px solid var(--grey-600);
+  background: var(--white);
+}
+
+.field-box ion-input {
+  --color: var(--grey-700);
+}
+
+.large-button {
+    display: flex;
+    width: calc(100% - 32px);
+  --border-radius: 12px;
+  --background: var(--yellow-700);
+  --padding-top: 16px;
+  --padding-bottom: 16px;
+  --padding-start: 10px;
+  --padding-end: 10px;
+}
+

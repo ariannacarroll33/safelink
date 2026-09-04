@@ -10,6 +10,7 @@ import { notificationsOutline } from 'ionicons/icons';
 //import '../theme/global.css';
 //import '../theme/colours.css';
 import './Home.css';
+import './components.css';
 
 // There is 3 different states for this page. This declares each state and sets default. See bellow change of states.
 type TripStatus = 'notstarted' | 'tripinformation' | 'traveling' | 'arrived';
@@ -99,7 +100,8 @@ const createMap = async () => {
     // getCurrentPosition API from geolocation plugin. Only retireves inital position.
     const currentPosition = await Geolocation.getCurrentPosition({
       enableHighAccuracy: true,
-      maximumAge: 0 
+      timeout: 10000,
+      maximumAge: 1000 
     });
 
   const newMap = await GoogleMap.create({
@@ -130,7 +132,7 @@ const createMap = async () => {
     const watchId = await Geolocation.watchPosition(
       { 
         enableHighAccuracy: true,
-       maximumAge: 0 
+       maximumAge: 1000 
       },
       (position, err) => {
         if (err) { console.error('watchPosition error', err); return; }
@@ -149,7 +151,7 @@ const createMap = async () => {
         const path = routePathRef.current;
         let idx = routeIndexRef.current;
 
-        while (idx < path.length - 1 && getDistanceMeters(currentPos, path[idx]) < 25) {
+        while (idx < path.length - 1 && getDistanceMeters(currentPos, path[idx]) < 10) {
           idx++;
         }
 
@@ -266,20 +268,23 @@ const getDirections = async (
 
 {/* CHANGE OF STATE */}
 {tripStatus === 'tripinformation' && (
-  <div
-    style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100%',
-    }}
-  >
-    <IonInput
-      placeholder="Enter destination"
-      value={destinationInput}
-      onIonInput={(e) => handleDestinationChange(e.detail.value!)}
-    />
+  <div style={{ marginTop: 24, marginRight: 16, marginLeft: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className="box-container">
+      <div className="box-container-text">
+  <span className="mini-text" style={{ color: 'var(--yellow-700)' }}>
+  Mandatory
+</span>
+  <span className="field-label h5-medium" style={{ color: 'var(--yellow-700)' }}>
+    When I arrive
+  </span>
+  </div>
+  <div className="field-box">
+  <IonInput 
+    placeholder="Enter destination"
+    value={destinationInput}
+    onIonInput={(e) => handleDestinationChange(e.detail.value!)}
+  />
+
 
         {/* NEW — predicted destination dropdown */}
     {predictions.length > 0 && (
@@ -298,25 +303,47 @@ const getDirections = async (
         ))}
       </div>
     )}
-    <IonButton onClick={() => setTripStatus('traveling')}>
+    </div>
+    </div>
+    <IonButton className="large-button" onClick={() => setTripStatus('traveling')}>
       Begin
     </IonButton>
   </div>
 )}
 
+
 {/* CHANGE OF STATE */}
 {tripStatus === 'traveling' && (
-  <capacitor-google-map
-    ref={mapRef}
-    
-    style={{
-      display: 'inline-block',
-      width: '500px',
-      height: '500px',
-    }}
-  ></capacitor-google-map>
-)}
+  <div>
+    <div
+      style={{
+        margin: '16px',
+        padding: '0px',
+        backgroundColor: 'var(--white)',
+        border: '2px solid var(--yellow-700)',
+        borderRadius: '12px',
+        boxSizing: 'border-box',
+      }}
+    >
+      <capacitor-google-map
+        ref={mapRef}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: '400px',
+        }}
+      ></capacitor-google-map>
+    </div>
 
+    <IonButton 
+      className="large-button" 
+      onClick={() => setTripStatus('arrived')}
+      style={{ margin: '16px' }}
+    >
+      End Trip
+    </IonButton>
+  </div>
+)}
 
 
 {/* CHANGE OF STATE */}
