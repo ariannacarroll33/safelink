@@ -15,14 +15,10 @@ import { useHistory, useLocation } from 'react-router-dom';
 
 // FIREBASE
 import { auth, db } from '../services/firebaseConfig';
-import { 
-  RecaptchaVerifier, 
-  linkWithPhoneNumber, 
-  GoogleAuthProvider, 
-  OAuthProvider, 
-  linkWithPopup 
-} from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
+
+// PLUGIN NATIVO - necesario para Google/Apple/SMS dentro de Capacitor
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
 interface LocationState {
   phone?: string;
@@ -32,45 +28,51 @@ const VerificationCode: React.FC = () => {
   const history = useHistory();
   const location = useLocation<LocationState>();
   
-  // Retrieve the phone number passed from CreateUser.tsx
   const phone = location.state?.phone || '';
 
   const [verificationCode, setVerificationCode] = useState<string>('');
+  const [verificationId, setVerificationId] = useState<string | null>(null);
   const [smsSent, setSmsSent] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
 
-  // Controla qué método está expandido visualmente ('sms' | 'google' | 'apple' | null)
   const [activeMethod, setActiveMethod] = useState<'sms' | 'google' | 'apple' | null>('sms');
 
-  // Función para limpiar por completo el panel de SMS si se cambia de opción
   const resetSMSState = () => {
     setSmsSent(false);
     setVerificationCode('');
+    setVerificationId(null);
   };
 
-  // 1. INITIALIZE INVISIBLE RECAPTCHA FOR SMS
-  const setupRecaptcha = () => {
-    try {
-      if ((window as any).recaptchaVerifier) {
-        (window as any).recaptchaVerifier.clear();
-      }
-      (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => console.log('ReCAPTCHA successfully verified'),
-        'expired-callback': () => alert('ReCAPTCHA has expired. Please try again.')
-      });
-      return (window as any).recaptchaVerifier;
-    } catch (err) {
-      console.error('Error in RecaptchaVerifier:', err);
-    }
-  };
+  // LISTENERS del plugin nativo para el flujo de SMS
+  useEffect(() => {
+    const codeSentListener = FirebaseAuthentication.addListener('phoneCodeSent', (event: any) => {
+      console.log('SMS enviado, verificationId recibido');
+      setVerificationId(event.verificationId);
+      setSmsSent(true);
+      setLoading(false);
+      setToastMessage('Verification code sent.');
+      setShowToast(true);
+    });
 
-  // 💬 OPTION A: SEND SMS
+    const verificationFailedListener = FirebaseAuthentication.addListener('phoneVerificationFailed', (event: any) => {
+      console.error('Phone verification failed:', event);
+      setLoading(false);
+      setToastMessage(`Error sending SMS: ${event.message || 'unknown error'}`);
+      setShowToast(true);
+    });
+
+    return () => {
+      codeSentListener.then((handle) => handle.remove());
+      verificationFailedListener.then((handle) => handle.remove());
+    };
+  }, []);
+
+  // 💬 OPTION A: SEND SMS (PLUGIN NATIVO)
   const handleSendSMS = async () => {
-    setActiveMethod('sms'); // Asegura que el método activo es SMS
+    setActiveMethod('sms');
     const currentUser = auth.currentUser;
     if (!currentUser) {
       setToastMessage('User session not found. Please register again.');
@@ -86,17 +88,12 @@ const VerificationCode: React.FC = () => {
 
     try {
       setLoading(true);
-      const appVerifier = setupRecaptcha();
-      if (!appVerifier) throw new Error('Failed to initialize security validator.');
+      console.log('Sending SMS to:', phone);
 
-      console.log('Sending test/real SMS to:', phone);
-      const confirmationResult = await linkWithPhoneNumber(currentUser, phone, appVerifier);
-      (window as any).confirmationResult = confirmationResult;
+      // Dispara el flujo nativo. El resultado (verificationId) llega
+      // por el listener 'phoneCodeSent' de arriba, no aquí directamente.
+      await FirebaseAuthentication.linkWithPhoneNumber({ phoneNumber: phone });
 
-      setSmsSent(true);
-      setLoading(false);
-      setToastMessage('Verification code sent.');
-      setShowToast(true);
     } catch (error: any) {
       setLoading(false);
       console.error('Error sending SMS:', error);
@@ -105,12 +102,11 @@ const VerificationCode: React.FC = () => {
     }
   };
 
-  // 💬 OPTION A (CONTINUED): VALIDATE THE SMS CODE
+  // 💬 OPTION A (CONTINUED): VALIDATE THE SMS CODE (PLUGIN NATIVO)
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    const confirmationResult = (window as any).confirmationResult;
 
-    if (!confirmationResult) {
+    if (!verificationId) {
       setToastMessage('No active verification session. Send the SMS first.');
       setShowToast(true);
       return;
@@ -118,9 +114,11 @@ const VerificationCode: React.FC = () => {
 
     try {
       setLoading(true);
-      await confirmationResult.confirm(verificationCode);
+      await FirebaseAuthentication.confirmVerificationCode({
+        verificationId,
+        verificationCode
+      });
 
-      // Update verification status in Firestore
       if (auth.currentUser) {
         await updateDoc(doc(db, 'users', auth.currentUser.uid), {
           verified: true,
@@ -132,7 +130,6 @@ const VerificationCode: React.FC = () => {
       setToastMessage('Phone verified successfully!');
       setShowToast(true);
       
-      // Redirecting to onboarding page as requested
       history.push('/onboarding'); 
 
     } catch (error: any) {
@@ -143,9 +140,8 @@ const VerificationCode: React.FC = () => {
     }
   };
 
-  // 🚀 OPTION B: VERIFY/LINK WITH GOOGLE POPUP
+  // 🚀 OPTION B: VERIFY/LINK WITH GOOGLE (PLUGIN NATIVO)
   const handleVerifyWithGoogle = async () => {
-    // Si pulsa aquí, hacemos desaparecer los huecos del SMS al instante
     setActiveMethod('google');
     resetSMSState();
 
@@ -158,11 +154,8 @@ const VerificationCode: React.FC = () => {
 
     try {
       setLoading(true);
-      const provider = new GoogleAuthProvider();
-      // Link Google account to the currently created email user
-      await linkWithPopup(currentUser, provider);
+      await FirebaseAuthentication.linkWithGoogle();
 
-      // Mark user as verified via Google in Firestore
       await updateDoc(doc(db, 'users', currentUser.uid), {
         verified: true,
         verifiedBy: 'google'
@@ -172,7 +165,6 @@ const VerificationCode: React.FC = () => {
       setToastMessage('Account verified with Google!');
       setShowToast(true);
       
-      // Redirecting to onboarding page as requested
       history.push('/onboarding'); 
     } catch (error: any) {
       setLoading(false);
@@ -185,9 +177,8 @@ const VerificationCode: React.FC = () => {
     }
   };
 
-  // 🍏 OPTION C: VERIFY/LINK WITH APPLE POPUP
+  // 🍏 OPTION C: VERIFY/LINK WITH APPLE (PLUGIN NATIVO)
   const handleVerifyWithApple = async () => {
-    // Si pulsa aquí, hacemos desaparecer los huecos del SMS al instante
     setActiveMethod('apple');
     resetSMSState();
 
@@ -200,11 +191,8 @@ const VerificationCode: React.FC = () => {
 
     try {
       setLoading(true);
-      const provider = new OAuthProvider('apple.com');
-      // Link Apple account to the current user
-      await linkWithPopup(currentUser, provider);
+      await FirebaseAuthentication.linkWithApple();
 
-      // Mark user as verified via Apple in Firestore
       await updateDoc(doc(db, 'users', currentUser.uid), {
         verified: true,
         verifiedBy: 'apple'
@@ -214,7 +202,6 @@ const VerificationCode: React.FC = () => {
       setToastMessage('Account verified with Apple!');
       setShowToast(true);
       
-      // Redirecting to onboarding page as requested
       history.push('/onboarding');
     } catch (error: any) {
       setLoading(false);
@@ -250,9 +237,6 @@ const VerificationCode: React.FC = () => {
           position="bottom"
         />
 
-        {/* Invisible container div required by reCAPTCHA */}
-        <div id="recaptcha-container"></div>
-
         <div style={{ textAlign: 'center', margin: '30px 0 20px 0' }}>
           <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#633A0E' }}>
             Verify Your Account
@@ -264,13 +248,11 @@ const VerificationCode: React.FC = () => {
 
         {/* ================= SMS SECTION ================= */}
         <div style={sectionBoxStyle}>
-          {/* Fusión limpia del estilo solucionando el error anterior */}
           <h3 onClick={() => setActiveMethod('sms')} style={{ ...sectionTitleStyle, cursor: 'pointer' }}>
             <IonIcon icon={chatbubbleOutline} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
             Option 1: Verify via SMS
           </h3>
           
-          {/* Si el método activo es SMS y aún no se envía el código */}
           {activeMethod === 'sms' && !smsSent && (
             <div>
               <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
@@ -287,7 +269,6 @@ const VerificationCode: React.FC = () => {
             </div>
           )}
 
-          {/* Si el código ya se envió Y el método activo sigue siendo SMS, se muestran los 6 huecos */}
           {activeMethod === 'sms' && smsSent && (
             <form onSubmit={handleVerifyCode}>
               <p style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>
@@ -325,7 +306,6 @@ const VerificationCode: React.FC = () => {
             </form>
           )}
 
-          {/* Si el usuario seleccionó otro método (Google/Apple), mostramos un botón discreto para volver al flujo SMS */}
           {activeMethod !== 'sms' && (
             <IonButton 
               fill="clear" 
@@ -357,7 +337,6 @@ const VerificationCode: React.FC = () => {
         {/* ================= GOOGLE & APPLE SECTION ================= */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           
-          {/* VERIFY WITH GOOGLE */}
           <button
             type="button"
             onClick={handleVerifyWithGoogle}
@@ -383,7 +362,6 @@ const VerificationCode: React.FC = () => {
             Verify with Google
           </button>
 
-          {/* VERIFY WITH APPLE */}
           <button
             type="button"
             onClick={handleVerifyWithApple}

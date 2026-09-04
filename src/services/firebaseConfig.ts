@@ -1,7 +1,8 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getAuth, initializeAuth, indexedDBLocalPersistence } from "firebase/auth";
+import { initializeFirestore } from "firebase/firestore";
+import { Capacitor } from "@capacitor/core";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -17,6 +18,14 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Export Firebase services to use them across the app
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+// AUTH: en apps nativas usamos indexedDBLocalPersistence para evitar
+// que Firebase Auth intente usar gapi/iframes (no funcionan en la webview de Capacitor).
+export const auth = Capacitor.isNativePlatform()
+  ? initializeAuth(app, { persistence: indexedDBLocalPersistence })
+  : getAuth(app);
+
+// FIRESTORE: forzamos long polling siempre (funciona igual en web y en nativo,
+// así evitamos el problema de conexiones colgadas en Capacitor).
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+});
