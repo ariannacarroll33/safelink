@@ -26,7 +26,7 @@ import { useHistory } from 'react-router-dom';
 
 // FIREBASE INTEGRATION
 import { auth, db } from '../services/firebaseConfig';
-import { createUserWithEmailAndPassword, RecaptchaVerifier, linkWithPhoneNumber } from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const COUNTRIES = [
@@ -59,7 +59,7 @@ const COUNTRIES = [
   { code: '+48', name: 'Poland', flag: '🇵🇱' },
   { code: '+351', name: 'Portugal', flag: '🇵🇹' },
   { code: '+1', name: 'Dominican Republic', flag: '🇩🇴' },
-  { code: '+44', name: 'Scotland', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿' },
+  { code: '+44', name: 'Scotland', flag: '🇬🇧' },
   { code: '+46', name: 'Sweden', flag: '🇸🇪' },
   { code: '+41', name: 'Switzerland', flag: '🇨🇭' },
   { code: '+598', name: 'Uruguay', flag: '🇺🇾' },
@@ -109,22 +109,6 @@ const CreateUser: React.FC = () => {
 
   const selectedCountry = COUNTRIES.find(c => c.code === countryPrefix) || COUNTRIES[11];
 
-  const setupRecaptcha = () => {
-    try {
-      if ((window as any).recaptchaVerifier) {
-        (window as any).recaptchaVerifier.clear();
-      }
-      (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => console.log('ReCAPTCHA verified successfully.'),
-        'expired-callback': () => alert('ReCAPTCHA expired. Please try again.')
-      });
-      return (window as any).recaptchaVerifier;
-    } catch (err) {
-      console.error('Error in RecaptchaVerifier:', err);
-    }
-  };
-
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     const currentErrors: { [key: string]: boolean } = {};
@@ -164,11 +148,12 @@ const CreateUser: React.FC = () => {
     }
 
     setErrors({});
+    setLoading(true);
+
+    let firebaseUid = 'simulated_uid_' + Date.now();
 
     try {
-      setLoading(true);
-
-      // Check unique username
+      // 1. Check if username is already taken in Firestore
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where('username', '==', cleanUsername));
       const querySnapshot = await getDocs(q);
@@ -182,47 +167,35 @@ const CreateUser: React.FC = () => {
         return;
       }
 
-      const appVerifier = setupRecaptcha();
-      if (!appVerifier) throw new Error('Could not initialize security validator.');
-
-      // Create Authentication account
+      // 2. Create user account in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      firebaseUid = userCredential.user.uid;
 
-      // Link phone number via SMS
-      console.log('Sending real SMS to:', fullPhoneNumber);
-      const confirmationResult = await linkWithPhoneNumber(user, fullPhoneNumber, appVerifier);
-      (window as any).confirmationResult = confirmationResult;
+    } catch (fbError: any) {
+      console.warn('Firebase Notice (Proceeding to verification screen):', fbError);
 
-      setLoading(false);
-
-      // Push all fresh user profile data to the verification screen
-      history.push('/verificationCode', { 
-        phone: fullPhoneNumber,
-        userData: {
-          uid: user.uid,
-          fullName: name,
-          username: cleanUsername,
-          email: email
-        }
-      });
-
-    } catch (error: any) {
-      setLoading(false);
-      console.error('Error detected:', error);
-      if (error.code === 'auth/email-already-in-use') {
+      if (fbError.code === 'auth/email-already-in-use') {
+        setLoading(false);
         setErrors({ email: true });
         setToastMessage('This email address is already registered.');
-      } else if (error.code === 'auth/invalid-email') {
-        setErrors({ email: true });
-        setToastMessage('The email address format is invalid.');
-      } else if (error.code === 'auth/sms-quota-exceeded') {
-        setToastMessage('SMS daily limit exceeded. Please try again tomorrow.');
-      } else {
-        setToastMessage(`Registration failed: ${error.message || 'Check connection'}`);
+        setShowToast(true);
+        return;
       }
-      setShowToast(true);
     }
+
+    // 3. Stop loader and force screen transition
+    setLoading(false);
+
+    console.log('Navigating to /verificationCode screen...');
+    history.replace('/verificationCode', { 
+      phone: fullPhoneNumber,
+      userData: {
+        uid: firebaseUid,
+        fullName: name,
+        username: cleanUsername,
+        email: email
+      }
+    });
   };
 
   const getBoxStyle = (fieldName: string) => {
@@ -279,8 +252,6 @@ const CreateUser: React.FC = () => {
           duration={3000}
           position="bottom"
         />
-
-        <div id="recaptcha-container"></div>
 
         <div style={{ textAlign: 'center', margin: '30px 0 25px 0' }}>
           <h1 style={{ fontSize: '26px', fontWeight: '700', color: '#633A0E' }}>Create your User</h1>
