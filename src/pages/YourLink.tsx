@@ -4,28 +4,39 @@ import { useHistory } from 'react-router-dom';
 import { notificationsOutline } from 'ionicons/icons';
 import './YourLink.css';
 import alertNoise from '../assets/mixkit-facility-alarm-sound-999.wav';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+
 
 const YourLinkPage = () => {
   const history = useHistory();
   const [isAlarmActive, setIsAlarmActive] = useState(false);
+  const intervalref = useRef<number | null>(null);
 
 
-  // Alarm function. Code retrieved from Github sound example. 
   function startAlarm() {
-    const alarmSound = new Audio(alertNoise);
-    alarmSound.loop = true; // loops through sound
-    alarmSound.play();
-    audioRef.current = alarmSound;
-  };
+  const alarmSound = new Audio(alertNoise);
+  alarmSound.loop = true;
+  alarmSound.play();
+  audioRef.current = alarmSound;
+
+  // Start repeating vibration
+  intervalref.current = window.setInterval(() => {
+    Haptics.impact({ style: ImpactStyle.Heavy });
+  }, 500); 
+}
 
 
-  // 2. useRef hook. Controls pause / play of audio. 
+  // useRef hook. Controls pause / play of audio. 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const stopAlarmSound = () => {
     if (audioRef.current) {
       audioRef.current.pause();
     }
-  };
+    if (intervalref.current) {
+      window.clearInterval(intervalref.current);
+      intervalref.current = null;
+  }
+};
 
 
   // Button logic. Kept console.log for testing.
