@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   IonContent,
   IonPage,
@@ -10,14 +10,14 @@ import {
   IonHeader,
   IonToolbar
 } from '@ionic/react';
-import { arrowBackOutline, chatbubbleOutline, logoGoogle, logoApple } from 'ionicons/icons';
+import { arrowBackOutline, chatbubbleOutline, logoGoogle } from 'ionicons/icons';
 import { useHistory, useLocation } from 'react-router-dom';
 
 // FIREBASE
 import { auth, db } from '../services/firebaseConfig';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 
-// PLUGIN NATIVO - necesario para Google/Apple/SMS dentro de Capacitor
+// PLUGIN Google/SMS in Capacitor
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
 interface LocationState {
@@ -30,7 +30,12 @@ const VerificationCode: React.FC = () => {
   
   const phone = location.state?.phone || '';
 
-  const [verificationCode, setVerificationCode] = useState<string>('');
+  // Store 4 individual digits for the SMS verification code
+  const [digits, setDigits] = useState<string[]>(['', '', '', '']);
+  
+  // References to handle automatic focus switching between input boxes
+  const inputRefs = useRef<Array<HTMLIonInputElement | null>>([]);
+
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [smsSent, setSmsSent] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -38,18 +43,38 @@ const VerificationCode: React.FC = () => {
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
 
-  const [activeMethod, setActiveMethod] = useState<'sms' | 'google' | 'apple' | null>('sms');
+  // Active authentication option selected by user ('sms' or 'google')
+  const [activeMethod, setActiveMethod] = useState<'sms' | 'google' | null>('sms');
 
   const resetSMSState = () => {
     setSmsSent(false);
-    setVerificationCode('');
+    setDigits(['', '', '', '']);
     setVerificationId(null);
   };
 
-  // LISTENERS del plugin nativo para el flujo de SMS
+  // Handle value change across the 4 code inputs
+  const handleDigitChange = (value: string, index: number) => {
+    const newChar = value.slice(-1);
+    const updatedDigits = [...digits];
+    updatedDigits[index] = newChar;
+    setDigits(updatedDigits);
+
+    if (newChar && index < 3) {
+      inputRefs.current[index + 1]?.setFocus();
+    }
+  };
+
+  // Handle key navigation (Backspacing back to previous field)
+  const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
+    if (e.key === 'Backspace' && !digits[index] && index > 0) {
+      inputRefs.current[index - 1]?.setFocus();
+    }
+  };
+
+  // LISTENERS for Native Plugin SMS events
   useEffect(() => {
     const codeSentListener = FirebaseAuthentication.addListener('phoneCodeSent', (event: any) => {
-      console.log('SMS enviado, verificationId recibido');
+      console.log('SMS sent, verificationId received');
       setVerificationId(event.verificationId);
       setSmsSent(true);
       setLoading(false);
@@ -70,7 +95,7 @@ const VerificationCode: React.FC = () => {
     };
   }, []);
 
-  // 💬 OPTION A: SEND SMS (PLUGIN NATIVO)
+  // OPTION 1: SEND SMS
   const handleSendSMS = async () => {
     setActiveMethod('sms');
     const currentUser = auth.currentUser;
@@ -90,8 +115,6 @@ const VerificationCode: React.FC = () => {
       setLoading(true);
       console.log('Sending SMS to:', phone);
 
-      // Dispara el flujo nativo. El resultado (verificationId) llega
-      // por el listener 'phoneCodeSent' de arriba, no aquí directamente.
       await FirebaseAuthentication.linkWithPhoneNumber({ phoneNumber: phone });
 
     } catch (error: any) {
@@ -102,7 +125,7 @@ const VerificationCode: React.FC = () => {
     }
   };
 
-  // 💬 OPTION A (CONTINUED): VALIDATE THE SMS CODE (PLUGIN NATIVO)
+  // OPTION 1 (CONTINUED): VALIDATE 4-DIGIT SMS CODE
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -112,6 +135,8 @@ const VerificationCode: React.FC = () => {
       return;
     }
 
+    const verificationCode = digits.join('');
+
     try {
       setLoading(true);
       await FirebaseAuthentication.confirmVerificationCode({
@@ -120,10 +145,11 @@ const VerificationCode: React.FC = () => {
       });
 
       if (auth.currentUser) {
-        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+        await setDoc(doc(db, 'users', auth.currentUser.uid), {
           verified: true,
-          verifiedBy: 'sms'
-        });
+          verifiedBy: 'sms',
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
       }
 
       setLoading(false);
@@ -140,26 +166,25 @@ const VerificationCode: React.FC = () => {
     }
   };
 
-  // 🚀 OPTION B: VERIFY/LINK WITH GOOGLE (PLUGIN NATIVO)
+  // OPTION 2: VERIFY WITH GOOGLE (SOLUCIONADO CON setDoc)
   const handleVerifyWithGoogle = async () => {
     setActiveMethod('google');
     resetSMSState();
 
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      setToastMessage('Session not active. Please register first.');
-      setShowToast(true);
-      return;
-    }
-
     try {
       setLoading(true);
-      await FirebaseAuthentication.linkWithGoogle();
 
-      await updateDoc(doc(db, 'users', currentUser.uid), {
-        verified: true,
-        verifiedBy: 'google'
-      });
+      const result = await FirebaseAuthentication.signInWithGoogle();
+      const user = auth.currentUser || result.user;
+
+      if (user) {
+        // setDoc con merge:true crea el documento si no existe o lo actualiza si ya existe
+        await setDoc(doc(db, 'users', user.uid), {
+          verified: true,
+          verifiedBy: 'google',
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
 
       setLoading(false);
       setToastMessage('Account verified with Google!');
@@ -168,48 +193,8 @@ const VerificationCode: React.FC = () => {
       history.push('/onboarding'); 
     } catch (error: any) {
       setLoading(false);
-      console.error('Error linking Google:', error);
-      setToastMessage(error.code === 'auth/credential-already-in-use' 
-        ? 'This Google account is already linked to another user.' 
-        : 'Failed to verify with Google.'
-      );
-      setShowToast(true);
-    }
-  };
-
-  // 🍏 OPTION C: VERIFY/LINK WITH APPLE (PLUGIN NATIVO)
-  const handleVerifyWithApple = async () => {
-    setActiveMethod('apple');
-    resetSMSState();
-
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      setToastMessage('Session not active. Please register first.');
-      setShowToast(true);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await FirebaseAuthentication.linkWithApple();
-
-      await updateDoc(doc(db, 'users', currentUser.uid), {
-        verified: true,
-        verifiedBy: 'apple'
-      });
-
-      setLoading(false);
-      setToastMessage('Account verified with Apple!');
-      setShowToast(true);
-      
-      history.push('/onboarding');
-    } catch (error: any) {
-      setLoading(false);
-      console.error('Error linking Apple:', error);
-      setToastMessage(error.code === 'auth/credential-already-in-use' 
-        ? 'This Apple account is already linked to another user.' 
-        : 'Failed to verify with Apple.'
-      );
+      console.error('Error with Google Auth:', error);
+      setToastMessage(`Google Auth Error: ${error.message || 'Failed to verify'}`);
       setShowToast(true);
     }
   };
@@ -272,25 +257,34 @@ const VerificationCode: React.FC = () => {
           {activeMethod === 'sms' && smsSent && (
             <form onSubmit={handleVerifyCode}>
               <p style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>
-                Enter the 6-digit code received:
+                Enter the 4-digit code received:
               </p>
-              <div style={inputBoxStyle}>
-                <IonItem lines="none" style={itemStyle}>
-                  <IonInput
-                    type="number"
-                    value={verificationCode}
-                    onIonInput={(e) => setVerificationCode(e.detail.value || '')}
-                    placeholder="123456"
-                    maxlength={6}
-                    style={{ textAlign: 'center', fontSize: '18px', letterSpacing: '4px' }}
-                  />
-                </IonItem>
+              
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', margin: '12px 0' }}>
+                {digits.map((digit, index) => (
+                  <div key={index} style={digitInputBoxStyle}>
+                    <IonItem lines="none" style={itemStyle}>
+                      <IonInput
+                        ref={(el: HTMLIonInputElement | null) => {
+                          inputRefs.current[index] = el;
+                        }}
+                        type="number"
+                        value={digit}
+                        onIonInput={(e) => handleDigitChange(e.detail.value || '', index)}
+                        onKeyDown={(e) => handleKeyDown(e, index)}
+                        maxlength={1}
+                        style={{ textAlign: 'center', fontSize: '20px', fontWeight: 'bold' }}
+                      />
+                    </IonItem>
+                  </div>
+                ))}
               </div>
+
               <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
                 <IonButton 
                   expand="block" 
                   type="submit"
-                  disabled={loading || verificationCode.length !== 6}
+                  disabled={loading || digits.join('').length !== 4}
                   style={{ flex: 1, '--background': '#E6A937', '--color': '#FFF', '--border-radius': '10px' }}
                 >
                   {loading ? 'Verifying...' : 'Verify Code'}
@@ -334,9 +328,8 @@ const VerificationCode: React.FC = () => {
           <span style={{ flex: 1, height: '1px', background: 'rgba(99, 58, 14, 0.2)', marginLeft: '10px' }}></span>
         </div>
 
-        {/* ================= GOOGLE & APPLE SECTION ================= */}
+        {/* ================= GOOGLE SECTION ================= */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          
           <button
             type="button"
             onClick={handleVerifyWithGoogle}
@@ -355,38 +348,13 @@ const VerificationCode: React.FC = () => {
               cursor: 'pointer',
               color: '#000000',
               boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-              transition: 'border 0.2s ease'
+              transition: 'border 0.2s ease',
+              opacity: loading ? 0.7 : 1
             }}
           >
             <IonIcon icon={logoGoogle} style={{ color: '#EA4335', fontSize: '20px' }} />
-            Verify with Google
+            {loading && activeMethod === 'google' ? 'Verifying...' : 'Verify with Google'}
           </button>
-
-          <button
-            type="button"
-            onClick={handleVerifyWithApple}
-            disabled={loading}
-            style={{
-              height: '50px',
-              borderRadius: '12px',
-              border: activeMethod === 'apple' ? '2px solid #E6A937' : '1px solid #000000',
-              backgroundColor: '#000000',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              fontWeight: '600',
-              fontSize: '15px',
-              cursor: 'pointer',
-              color: '#FFFFFF',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-              transition: 'border 0.2s ease'
-            }}
-          >
-            <IonIcon icon={logoApple} style={{ color: '#FFFFFF', fontSize: '20px' }} />
-            Verify with Apple
-          </button>
-
         </div>
       </IonContent>
     </IonPage>
@@ -416,12 +384,16 @@ const sectionTitleStyle: React.CSSProperties = {
   margin: '0 0 12px 0'
 };
 
-const inputBoxStyle = {
+const digitInputBoxStyle: React.CSSProperties = {
+  flex: 1,
+  maxWidth: '50px',
+  height: '50px',
   background: '#F5F5F5',
   borderRadius: '10px',
   border: '1px solid #CCCCCC',
-  padding: '2px 8px',
-  marginTop: '6px'
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
 };
 
 export default VerificationCode;
