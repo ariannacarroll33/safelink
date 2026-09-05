@@ -50,7 +50,7 @@ const Onboarding4: React.FC = () => {
           {/* Bandeja inferior dorada idéntica a la foto */}
           <div style={bottomContainerStyle}>
             <button 
-              onClick={() => history.push('/enter-passcode')} 
+              onClick={() => history.push('/enterPasscode')} 
               style={actionButtonStyle}
               type="button"
             >
