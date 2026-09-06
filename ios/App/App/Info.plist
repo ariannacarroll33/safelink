@@ -44,6 +44,8 @@
 	</dict>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>We need your location to track your journey and share it when necessary</string>
+	<key>NSContactsUsageDescription</key>
+	<string>We need access to your contacts to select emergency contacts</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to track your journey and share it when neccesary</string>
 	<key>UIBackgroundModes</key>

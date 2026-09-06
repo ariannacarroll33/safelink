@@ -25,6 +25,9 @@ import {
 
 import { useHistory } from 'react-router-dom';
 
+// Capacitor Native Contacts Plugin
+import { Contacts } from '@capacitor-community/contacts';
+
 interface Contact {
   id: string;
   name: string;
@@ -53,29 +56,80 @@ const EmergencyContact: React.FC = () => {
 
   const addNewManualContact = () => {
     const newId = Date.now().toString();
-    setContacts([...contacts, { id: newId, name: '', countryCode: '+353', phone: '' }]);
+    setContacts(prev => [...prev, { id: newId, name: '', countryCode: '+353', phone: '' }]);
   };
 
+  // Helper to separate country code from raw phone number
+  const parsePhoneNumber = (rawPhone: string) => {
+    const cleaned = rawPhone.replace(/[^\d+]/g, '');
+    if (cleaned.startsWith('+')) {
+      // Basic extraction of 1-3 digit country codes
+      const match = cleaned.match(/^(\+\d{1,3})(\d+)$/);
+      if (match) {
+        return { countryCode: match[1], phone: match[2] };
+      }
+    }
+    return { countryCode: '+353', phone: cleaned };
+  };
+
+  // Import directly using native iOS contacts picker
   const handleImportFromDevice = async () => {
     try {
-      const simulatedContact: Contact = {
-        id: Date.now().toString(),
-        name: 'John Doe',
-        countryCode: '+34',
-        phone: '612345678'
-      };
-      
-      if (contacts.length === 1 && !contacts[0].name && !contacts[0].phone) {
-        setContacts([simulatedContact]);
-      } else {
-        setContacts([...contacts, simulatedContact]);
+      // Check and request permission on iOS
+      const permission = await Contacts.requestPermissions();
+      if (permission.contacts !== 'granted') {
+        setToastMessage('Contacts access permission was denied.');
+        setShowToast(true);
+        return;
       }
+
+      // Opens the native iOS Contact Picker
+      const result = await Contacts.pickContact({
+        projection: {
+          name: true,
+          phones: true
+        }
+      });
+
+      if (!result || !result.contact) {
+        return; // User cancelled selection
+      }
+
+      const nativeContact = result.contact;
       
+      // Extract full name
+      const displayName = 
+        nativeContact.name?.display ||
+        `${nativeContact.name?.given || ''} ${nativeContact.name?.family || ''}`.trim() ||
+        'Unknown Contact';
+
+      // Extract first phone number available
+      const rawPhone = nativeContact.phones?.[0]?.number || '';
+      const { countryCode, phone } = parsePhoneNumber(rawPhone);
+
+      const importedContact: Contact = {
+        id: Date.now().toString(),
+        name: displayName,
+        countryCode,
+        phone
+      };
+
+      // Replace initial empty slot or append to existing array
+      setContacts(prev => {
+        if (prev.length === 1 && !prev[0].name && !prev[0].phone) {
+          return [importedContact];
+        }
+        return [...prev, importedContact];
+      });
+
       setToastMessage('Contact imported successfully.');
       setShowToast(true);
-    } catch (err) {
-      setToastMessage('Permission denied or could not access contacts.');
-      setShowToast(true);
+    } catch (err: any) {
+      console.error('Error selecting contact:', err);
+      if (err?.message !== 'User cancelled') {
+        setToastMessage('Could not access native contacts.');
+        setShowToast(true);
+      }
     }
   };
 
@@ -87,7 +141,9 @@ const EmergencyContact: React.FC = () => {
     }
   };
 
-  const isFormValid = contacts.every(c => c.name.trim() !== '' && c.countryCode.trim() !== '' && c.phone.trim() !== '');
+  const isFormValid = contacts.every(
+    c => c.name.trim() !== '' && c.countryCode.trim() !== '' && c.phone.trim() !== ''
+  );
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,8 +153,7 @@ const EmergencyContact: React.FC = () => {
       setShowToast(true);
       return;
     }
-
-    history.push('/nextScreen', { emergencyContacts: contacts });
+    history.push('Home');
   };
 
   const dynamicButtonStyle = {
@@ -141,7 +196,7 @@ const EmergencyContact: React.FC = () => {
           buttons={[
             {
               text: 'Import from Contacts',
-              icon: bookOutline, // 🌟 Cambiado aquí también
+              icon: bookOutline,
               handler: () => { handleImportFromDevice(); }
             },
             {
@@ -156,7 +211,7 @@ const EmergencyContact: React.FC = () => {
           ]}
         />
 
-        {/* LOGO DE DIANA */}
+        {/* LOGO */}
         <div style={logoContainerStyle}>
           <div style={outerCircleStyle}>
             <div style={innerCircleStyle} />
@@ -254,7 +309,7 @@ const EmergencyContact: React.FC = () => {
               type="submit"
               style={dynamicButtonStyle}
             >
-              Next
+              Explore SafeLink!
             </IonButton>
           </div>
 
@@ -270,7 +325,6 @@ const headerStyle: React.CSSProperties = { backgroundColor: '#E5A93C', height: '
 const backButtonStyle: React.CSSProperties = { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'rgba(0, 0, 0, 0.2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' };
 const headerTitleStyle: React.CSSProperties = { color: '#FFFFFF', fontSize: '22px', fontWeight: '700', margin: 0 };
 
-// 🌟 Corregido aquí: de 'justifycontent' a 'justifyContent'
 const logoContainerStyle: React.CSSProperties = { display: 'flex', marginTop: '24px', marginBottom: '20px', alignSelf: 'center', justifyContent: 'center' };
 
 const outerCircleStyle: React.CSSProperties = { width: '54px', height: '54px', borderRadius: '50%', border: '2px dashed #fcdf67', display: 'flex', alignItems: 'center', justifyContent: 'center' };

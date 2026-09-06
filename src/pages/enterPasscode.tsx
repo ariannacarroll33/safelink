@@ -2,14 +2,13 @@ import React, { useState, useRef } from 'react';
 import {
   IonContent,
   IonPage,
-  IonButton,
   IonIcon,
   IonToast,
   IonHeader,
   IonToolbar,
   IonInput
 } from '@ionic/react';
-import { arrowBackOutline, pinOutline } from 'ionicons/icons';
+import { arrowBackOutline, pinOutline, lockClosedOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 
 // FIREBASE
@@ -19,40 +18,87 @@ import { doc, updateDoc } from 'firebase/firestore';
 const EnterPasscode: React.FC = () => {
   const history = useHistory();
 
+  // Step 1: Initial Passcode | Step 2: Confirm Passcode
+  const [step, setStep] = useState<1 | 2>(1);
   const [passcode, setPasscode] = useState<string[]>(['', '', '', '']);
+  const [confirmPasscode, setConfirmPasscode] = useState<string[]>(['', '', '', '']);
+
   const [loading, setLoading] = useState<boolean>(false);
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
 
-  const inputRefs = [
-    useRef<HTMLIonInputElement>(null),
-    useRef<HTMLIonInputElement>(null),
-    useRef<HTMLIonInputElement>(null),
-    useRef<HTMLIonInputElement>(null),
-  ];
+  // Fixed hook usage for refs array
+  const inputRefs = useRef<Array<HTMLIonInputElement | null>>([]);
+  const confirmInputRefs = useRef<Array<HTMLIonInputElement | null>>([]);
 
-  const handleInputChange = (value: string, index: number) => {
+  const handleInputChange = (
+    value: string, 
+    index: number, 
+    isConfirm: boolean = false
+  ) => {
     const digit = value.slice(-1);
-    const newPasscode = [...passcode];
-    newPasscode[index] = digit;
-    setPasscode(newPasscode);
+    const targetState = isConfirm ? [...confirmPasscode] : [...passcode];
+    const targetRefs = isConfirm ? confirmInputRefs : inputRefs;
 
+    targetState[index] = digit;
+
+    if (isConfirm) {
+      setConfirmPasscode(targetState);
+    } else {
+      setPasscode(targetState);
+    }
+
+    // Auto focus next input
     if (digit !== '' && index < 3) {
-      inputRefs[index + 1].current?.setFocus();
+      targetRefs.current[index + 1]?.setFocus();
+    }
+
+    // Auto advance to Step 2 when Step 1 is complete
+    if (!isConfirm && index === 3 && digit !== '') {
+      const fullPasscode = [...targetState].join('');
+      if (fullPasscode.length === 4) {
+        setTimeout(() => {
+          setStep(2);
+        }, 150);
+      }
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLIonInputElement>, index: number) => {
-    if (e.key === 'Backspace' && passcode[index] === '' && index > 0) {
-      inputRefs[index - 1].current?.setFocus();
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLIonInputElement>, 
+    index: number, 
+    isConfirm: boolean = false
+  ) => {
+    const targetState = isConfirm ? confirmPasscode : passcode;
+    const targetRefs = isConfirm ? confirmInputRefs : inputRefs;
+
+    if (e.key === 'Backspace' && targetState[index] === '' && index > 0) {
+      targetRefs.current[index - 1]?.setFocus();
     }
   };
 
-  const isPasscodeComplete = passcode.every(digit => digit !== '');
-  const finalPasscodeString = passcode.join('');
+  const currentDigits = step === 1 ? passcode : confirmPasscode;
+  const isCurrentComplete = currentDigits.every(digit => digit !== '');
 
   const handleNext = async () => {
-    if (!isPasscodeComplete || loading) return;
+    if (!isCurrentComplete || loading) return;
+
+    if (step === 1) {
+      setStep(2);
+      return;
+    }
+
+    // Validation step 2
+    const originalPin = passcode.join('');
+    const confirmedPin = confirmPasscode.join('');
+
+    if (originalPin !== confirmedPin) {
+      setToastMessage('Passcodes do not match. Please try again.');
+      setShowToast(true);
+      setConfirmPasscode(['', '', '', '']);
+      confirmInputRefs.current[0]?.setFocus();
+      return;
+    }
 
     const currentUser = auth.currentUser;
     if (!currentUser) {
@@ -63,14 +109,16 @@ const EnterPasscode: React.FC = () => {
 
     try {
       setLoading(true);
+      // Save directly to user document in Firestore
       await updateDoc(doc(db, 'users', currentUser.uid), {
-        emergencyPasscode: finalPasscodeString,
+        emergencyPasscode: confirmedPin,
         passcodeUpdatedAt: new Date().toISOString()
       });
+
       setLoading(false);
       setToastMessage('Passcode set successfully!');
       setShowToast(true);
-      history.push('/emergency-contact'); 
+      history.push('/emergencyContact'); 
     } catch (error: any) {
       setLoading(false);
       console.error('Error saving passcode:', error);
@@ -79,15 +127,24 @@ const EnterPasscode: React.FC = () => {
     }
   };
 
+  const handleBack = () => {
+    if (step === 2) {
+      setStep(1);
+      setConfirmPasscode(['', '', '', '']);
+    } else {
+      history.goBack();
+    }
+  };
+
   return (
     <IonPage>
       <IonHeader className="ion-no-border">
         <IonToolbar style={headerToolbarStyle}>
           <div style={headerFlexContainer}>
-            <button onClick={() => history.goBack()} style={backButtonStyle} type="button">
+            <button onClick={handleBack} style={backButtonStyle} type="button">
               <IonIcon icon={arrowBackOutline} style={{ color: '#FFFFFF', fontSize: '24px' }} />
             </button>
-            <h1 style={headerTitleStyle}>Create Password</h1>
+            <h1 style={headerTitleStyle}>{step === 1 ? 'Create Passcode' : 'Confirm Passcode'}</h1>
             <div style={{ width: '40px' }} />
           </div>
         </IonToolbar>
@@ -104,23 +161,34 @@ const EnterPasscode: React.FC = () => {
 
         <div style={centerContainerStyle}>
           <div style={iconCircleStyle}>
-            <IonIcon icon={pinOutline} style={{ color: '#D58D1F', fontSize: '28px' }} />
+            <IonIcon 
+              icon={step === 1 ? pinOutline : lockClosedOutline} 
+              style={{ color: '#D58D1F', fontSize: '28px' }} 
+            />
           </div>
 
-          <h2 style={titleStyle}>Enter Passcode</h2>
+          <h2 style={titleStyle}>
+            {step === 1 ? 'Enter Passcode' : 'Re-enter Passcode'}
+          </h2>
           <p style={subtitleStyle}>
-            This code will be used to stop emergency texts being sent.
+            {step === 1 
+              ? 'This code will be used to stop emergency texts being sent.'
+              : 'Please confirm your 4-digit passcode to complete setup.'
+            }
           </p>
 
           <div style={passcodeRowStyle}>
-            {passcode.map((digit, index) => (
-              <div key={index} style={digitBoxStyle}>
+            {currentDigits.map((digit, index) => (
+              <div key={`${step}-${index}`} style={digitBoxStyle}>
                 <IonInput
-                  ref={inputRefs[index]}
+                  ref={(el: HTMLIonInputElement | null) => {
+                    if (step === 1) inputRefs.current[index] = el;
+                    else confirmInputRefs.current[index] = el;
+                  }}
                   type="number"
                   value={digit}
-                  onIonInput={(e) => handleInputChange(e.detail.value || '', index)}
-                  onKeyDown={(e) => handleKeyDown(e, index)}
+                  onIonInput={(e) => handleInputChange(e.detail.value || '', index, step === 2)}
+                  onKeyDown={(e) => handleKeyDown(e, index, step === 2)}
                   placeholder="0"
                   maxlength={1}
                   style={{
@@ -139,10 +207,10 @@ const EnterPasscode: React.FC = () => {
         <div style={footerTrayStyle}>
           <button
             onClick={handleNext}
+            disabled={!isCurrentComplete || loading}
             style={{
-              backgroundColor: isPasscodeComplete ? '#FFB703' : '#FFE8A3', 
-              color: isPasscodeComplete ? '#FFFFFF' : '#A68542',
-              
+              backgroundColor: isCurrentComplete ? '#FFB703' : '#FFE8A3', 
+              color: isCurrentComplete ? '#FFFFFF' : '#A68542',
               borderRadius: '30px', 
               height: '54px',
               width: '100%',
@@ -150,13 +218,13 @@ const EnterPasscode: React.FC = () => {
               fontWeight: 'bold',
               fontSize: '16px',
               letterSpacing: '0.5px',
-              cursor: isPasscodeComplete ? 'pointer' : 'default',
+              cursor: isCurrentComplete ? 'pointer' : 'default',
               transition: 'all 0.2s ease-in-out',
-              boxShadow: isPasscodeComplete ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
+              boxShadow: isCurrentComplete ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
               opacity: loading ? 0.7 : 1
             }}
           >
-            {loading ? 'SAVING...' : 'NEXT'}
+            {loading ? 'SAVING...' : step === 1 ? 'NEXT' : 'CONFIRM & SAVE'}
           </button>
         </div>
       </IonContent>
