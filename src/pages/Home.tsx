@@ -7,6 +7,10 @@ import polyline from '@mapbox/polyline'; // Change string to corrdinates.
 import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon, IonInput } from '@ionic/react';
 import { useHistory } from 'react-router-dom'; 
 import { notificationsOutline } from 'ionicons/icons';
+import { collection, doc } from 'firebase/firestore';
+import { db } from '../services/firebaseConfig';
+import { setDoc } from 'firebase/firestore';
+import { updateDoc } from 'firebase/firestore';
 //import '../theme/global.css';
 //import '../theme/colours.css';
 import './Home.css';
@@ -34,6 +38,7 @@ const history = useHistory(); //History use to navigate to notifications page.
 const [destinationInput, setDestinationInput] = useState('');
 const [tripStatus, setTripStatus] = useState<TripStatus>('notstarted'); // Default to 'notstarted' 
 const [eta, setEta] = useState('');
+const [tripLink, setTripLink] = useState('');
 
 // Dropdown 
 const [predictions, setPredictions] = useState<{ description: string; place_id: string }[]>([]);
@@ -44,6 +49,7 @@ const mapRef = useRef<HTMLElement>(null); // HTML Element.Empty box. Filled late
 const googleMapRef = useRef<GoogleMap | null>(null); // Googlemap object. Used later for directions & camera moving. Used with newmaps.
 const watchIdRef = useRef<string | null>(null); // String. NEW — holds the watch ID so we can cancel it on cleanup
 const destCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+const tripDocRef = useRef<ReturnType<typeof doc> | null>(null); // Holds firestore trip
 // Polyline Refs
 const polylineIdsRef = useRef<string[]>([]);
 const routePathRef = useRef<{ lat: number; lng: number }[]>([]);
@@ -51,7 +57,10 @@ const routeIndexRef = useRef(0);
 
 // When status traveling. If the map is not created, create it. 
  useEffect(() => {
-    if (tripStatus === 'traveling' && mapRef.current) { // If status traveling and does mapRef have something in box yetm
+    if (tripStatus === 'traveling' && mapRef.current) { 
+      const newTripRef = doc(collection(db, 'trips'));
+    tripDocRef.current = newTripRef; // Store trip for later
+      // If status traveling and does mapRef have something in box yetm
       createMap();
     }
 
@@ -104,6 +113,21 @@ const createMap = async () => {
       maximumAge: 1000 
     });
 
+    // Storing trip in firestore.
+    if (tripDocRef.current) {
+    await setDoc(tripDocRef.current, {
+      lat: currentPosition.coords.latitude,
+      lng: currentPosition.coords.longitude,
+      destination: destinationInput,
+      status: 'traveling',
+      updatedAt: Date.now(),
+    });
+  }
+W
+   if (tripDocRef.current) {
+    setTripLink(`https://safelink-2acc5.web.app/watch/${tripDocRef.current.id}`); // For sharing trip.
+  }
+
   const newMap = await GoogleMap.create({
     id: 'trip-map',
     element: mapRef.current,
@@ -137,6 +161,15 @@ const createMap = async () => {
       (position, err) => {
         if (err) { console.error('watchPosition error', err); return; }
         if (!position || !googleMapRef.current) return;
+
+        // Update Firestore with new position
+        if (tripDocRef.current) {
+  updateDoc(tripDocRef.current, {
+    lat: position.coords.latitude,
+    lng: position.coords.longitude,
+    updatedAt: Date.now(),
+  });
+}
 
         googleMapRef.current.setCamera({
           coordinate: {
@@ -176,8 +209,11 @@ const createMap = async () => {
       { lat: position.coords.latitude, lng: position.coords.longitude },
       destCoordsRef.current
     );
-    if (dist < 50) {
+     if (dist < 50) {
       setTripStatus('arrived');
+      if (tripDocRef.current) {
+        updateDoc(tripDocRef.current, { status: 'arrived' });
+      }
     }
   }
 }
@@ -335,13 +371,18 @@ const getDirections = async (
       ></capacitor-google-map>
     </div>
 
-    <IonButton 
-      className="large-button" 
-      onClick={() => setTripStatus('arrived')}
-      style={{ margin: '16px' }}
-    >
-      End Trip
-    </IonButton>
+<IonButton 
+  className="large-button" 
+  onClick={() => {
+    setTripStatus('arrived');
+    if (tripDocRef.current) {
+      updateDoc(tripDocRef.current, { status: 'arrived' });
+    }
+  }}
+  style={{ margin: '16px' }}
+>
+  End Trip
+</IonButton>
   </div>
 )}
 
