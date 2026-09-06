@@ -25,8 +25,6 @@ import EnterPasscode from './pages/enterPasscode';
 
 
 /* App styles & layout */
-import './theme/colours.css';
-import './theme/typography.css';
 import '@ionic/react/css/core.css';
 import '@ionic/react/css/normalize.css';
 import '@ionic/react/css/structure.css';
@@ -37,7 +35,11 @@ import '@ionic/react/css/text-alignment.css';
 import '@ionic/react/css/text-transformation.css';
 import '@ionic/react/css/flex-utils.css';
 import '@ionic/react/css/display.css';
+
+/* Custom Theme*/
 import './theme/variables.css';
+import './theme/colours.css';
+import './theme/typography.css';
 
 setupIonicReact();
 
@@ -47,19 +49,36 @@ function App() {
       <IonReactRouter> 
         <IonRouterOutlet>
           
-          {/* Default initial route redirects to Welcome */}
+          {/* Ruta Inicial por defecto redirige a Welcome */}
           <Route exact path="/">
             <Redirect to="/welcome" />
           </Route> 
 
-          <Route exact path="/welcome" component={Welcome} />
-          <Route exact path="/register" component={CreateUser} />
-          <Route exact path="/verificationCode" component={VerificationCode} />
-          <Route exact path="/emergencyContact" component={EmergencyContact} />
-          <Route exact path="/login" component={Login} />
-          <Route exact path="/forgot-password" component={ForgotPassword} />
+          <Route exact path="/welcome">
+            <Welcome />
+          </Route>
 
-          {/* Onboarding routes */}
+          <Route path="/register" exact={true}>
+            <CreateUser />
+          </Route>
+
+          <Route path="/verificationCode" exact={true}> 
+            <VerificationCode />
+          </Route>
+
+          <Route path="/emergencyContact" exact={true}> 
+            <EmergencyContact />
+          </Route>
+
+          <Route path="/login" exact={true}>
+            <Login />
+          </Route>
+
+          <Route path="/forgot-password" exact={true}>
+            <ForgotPassword />
+          </Route>
+
+          {/* onboarding routes */}
           <Route exact path="/onboarding">
             <Redirect to="/onboarding1" />
           </Route>
@@ -71,14 +90,16 @@ function App() {
           <Route exact path="/enterPasscode" component={EnterPasscode} />
           <Route exact path="/notifications"><NotificationsPage /></Route>
 
-          {/* Tabs */}
+          {/* tabs */}
           <Route path="/tabs" render={() => (
             <IonTabs>
               <IonRouterOutlet>
-                <Route path="/tabs/home" component={Home} exact={true} />
-                <Route path="/tabs/maps" component={MapsPage} exact={true} />
-                <Route path="/tabs/yourlink" component={YourLinkPage} exact={true} />
-                <Route path="/tabs/more" component={MorePage} exact={true} /> 
+                <Route path="/tabs/home" exact={true}>
+                  <Home />
+                </Route>
+                <Route path="/tabs/maps" render={() => <MapsPage />} exact={true} />
+                <Route path="/tabs/yourlink" render={() => <YourLinkPage />} exact={true} />
+                <Route path="/tabs/more" render={() => <MorePage />} exact={true} /> 
               </IonRouterOutlet>
 
               <IonTabBar slot="bottom">
@@ -105,7 +126,7 @@ function App() {
             </IonTabs>
           )} />
 
-          {/* Tab redirects */}
+          {/* redicrection tabs */}
           <Route exact path="/home">
             <Redirect to="/tabs/home" />
           </Route>
