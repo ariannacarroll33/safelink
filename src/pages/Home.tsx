@@ -123,7 +123,7 @@ const createMap = async () => {
       updatedAt: Date.now(),
     });
   }
-W
+
    if (tripDocRef.current) {
     setTripLink(`https://safelink-2acc5.web.app/watch/${tripDocRef.current.id}`); // For sharing trip.
   }
