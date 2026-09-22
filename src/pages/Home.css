@@ -52,10 +52,3 @@
 }
 
 
-.map-frame {
-  padding: 24px !important;
-  margin: 24px !important;
-  border: 5px solid red !important; /* Bright red border to verify link */
-  background-color: var(--white);
-  box-sizing: border-box;
-}

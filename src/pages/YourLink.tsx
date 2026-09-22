@@ -31,6 +31,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import './YourLink.css';
 import alertNoise from '../assets/mixkit-facility-alarm-sound-999.wav';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 // FIREBASE INTEGRATION
 import { auth, db } from '../services/firebaseConfig';
@@ -47,66 +48,70 @@ interface EmergencyContact {
 const YourLinkPage: React.FC = () => {
   const history = useHistory();
 
-  // 1. USER STATE (Initial state set to empty strings, populated from Firestore/Auth)
+  // 1. REFS
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const intervalRef = useRef<number | null>(null);
+
+  // 2. USER STATES
   const [userId, setUserId] = useState<string>('');
   const [userName, setUserName] = useState<string>('User Account');
   const [userEmail, setUserEmail] = useState<string>('');
   const [userPhone, setUserPhone] = useState<string>('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
-
-  // 2. EMERGENCY CONTACTS STATE
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
 
-  // 3. REAL-TIME LOCATION & TOGGLE STATE
-  const [isLive, setIsLive] = useState<boolean>(true);
-  const [userLocation, setUserLocation] = useState<string>('Fetching location...');
+  // 3. GEOLOCATION STATES
+  const [isLive, setIsLive] = useState<boolean>(false);
+  const [userLocation, setUserLocation] = useState<string>('Location sharing disabled');
   const [lastKnownLocation, setLastKnownLocation] = useState<string>('');
-  const watchIdRef = useRef<number | null>(null);
 
-  // Load User Data from Firestore or Local Storage Fallback
-  const loadUserData = () => {
-    onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        try {
-          const userDocRef = doc(db, 'users', currentUser.uid);
-          const userSnap = await getDoc(userDocRef);
+  // 4. UI STATES
+  const [isAlarmActive, setIsAlarmActive] = useState<boolean>(false);
+  const [showToast, setShowToast] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string>('');
+  const [showEditAlert, setShowEditAlert] = useState<boolean>(false);
+  const [showPhoneAlert, setShowPhoneAlert] = useState<boolean>(false);
+  const [showAddContactAlert, setShowAddContactAlert] = useState<boolean>(false);
 
-          if (userSnap.exists()) {
-            const data = userSnap.data();
-            setUserId(data.uid || currentUser.uid);
-            setUserName(data.name || currentUser.displayName || 'User Account');
-            setUserEmail(data.email || currentUser.email || '');
-            setUserPhone(data.phone || currentUser.phoneNumber || '');
-            
-            // Prefer manually selected avatar over Google Auth photo
-            const activeAvatar = data.avatarUrl || localStorage.getItem('avatarUrl');
-            if (activeAvatar) setProfileImage(activeAvatar);
-            
-            if (data.emergencyContacts) setEmergencyContacts(data.emergencyContacts);
+  // 5. LOAD USER DATA FUNCTION
+  const loadUserData = async () => {
+    // Carga de sesión/caché local
+    const savedAvatar = localStorage.getItem('avatarUrl');
+    if (savedAvatar) setProfileImage(savedAvatar);
 
-            localStorage.setItem('safelink_user', JSON.stringify({ ...data, avatarUrl: activeAvatar }));
-            return;
-          }
-        } catch (err) {
-          console.error('Error reading Firestore:', err);
-        }
+    const savedSession = localStorage.getItem('safelink_user');
+    if (savedSession) {
+      try {
+        const parsed = JSON.parse(savedSession);
+        if (parsed.id) setUserId(parsed.id);
+        if (parsed.name) setUserName(parsed.name);
+        if (parsed.phone) setUserPhone(parsed.phone);
+        if (parsed.avatarUrl) setProfileImage(parsed.avatarUrl);
+        if (parsed.emergencyContacts) setEmergencyContacts(parsed.emergencyContacts);
+      } catch (e) {
+        console.error('Error parsing local storage user data:', e);
       }
+    }
 
-      // Fallback to LocalStorage
-      const savedUserSession = localStorage.getItem('safelink_user');
-      if (savedUserSession) {
+    // Carga de Firebase Auth & Firestore
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUserId(user.uid);
+        if (user.email) setUserEmail(user.email);
+
         try {
-          const parsed = JSON.parse(savedUserSession);
-          setUserId(parsed.id || parsed.uid || `usr_${Date.now()}`);
-          setUserName(parsed.name || parsed.fullName || 'User Account');
-          setUserEmail(parsed.email || '');
-          setUserPhone(parsed.phone || '');
-          
-          const storedAvatar = parsed.avatarUrl || localStorage.getItem('avatarUrl');
-          if (storedAvatar) setProfileImage(storedAvatar);
-          if (parsed.emergencyContacts) setEmergencyContacts(parsed.emergencyContacts);
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.name) setUserName(data.name);
+            if (data.phone) setUserPhone(data.phone);
+            if (data.avatarUrl) setProfileImage(data.avatarUrl);
+            if (data.emergencyContacts) setEmergencyContacts(data.emergencyContacts);
+          }
         } catch (e) {
-          console.error('Error parsing localStorage:', e);
+          console.error('Error fetching Firestore user data:', e);
         }
       }
     });
@@ -182,16 +187,43 @@ const YourLinkPage: React.FC = () => {
     }
   };
 
-  const personalLink = `https://safelink-2acc5.web.app/add-contact?userId=${userId || 'account'}`;
+  // CONTROL DE ALARMA Y HAPTICS
+  const stopAlarm = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    if (intervalRef.current !== null) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsAlarmActive(false);
+  };
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isAlarmActive, setIsAlarmActive] = useState<boolean>(false);
-  const [showToast, setShowToast] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<string>('');
-  const [showEditAlert, setShowEditAlert] = useState<boolean>(false);
-  const [showPhoneAlert, setShowPhoneAlert] = useState<boolean>(false);
-  const [showAddContactAlert, setShowAddContactAlert] = useState<boolean>(false);
+  const startAlarm = () => {
+    stopAlarm();
+
+    const alarmSound = new Audio(alertNoise);
+    alarmSound.loop = true;
+    alarmSound.play().catch((err) => console.error('Audio play error:', err));
+    audioRef.current = alarmSound;
+
+    intervalRef.current = window.setInterval(() => {
+      Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
+    }, 500);
+
+    setIsAlarmActive(true);
+  };
+
+  const toggleAlarm = () => {
+    if (isAlarmActive) {
+      stopAlarm();
+    } else {
+      startAlarm();
+    }
+  };
+
+  const personalLink = `https://safelink-2acc5.web.app/add-contact?userId=${userId || 'account'}`;
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -201,7 +233,6 @@ const YourLinkPage: React.FC = () => {
         const base64Image = reader.result as string;
         setProfileImage(base64Image);
 
-        // Save image key explicitly and broadcast global sync event
         localStorage.setItem('avatarUrl', base64Image);
         
         const savedSession = localStorage.getItem('safelink_user');
@@ -338,19 +369,6 @@ const YourLinkPage: React.FC = () => {
       }
     } else {
       window.location.href = `sms:?&body=${encodeURIComponent(shareData.text)}`;
-    }
-  };
-
-  const toggleAlarm = () => {
-    if (isAlarmActive) {
-      if (audioRef.current) audioRef.current.pause();
-      setIsAlarmActive(false);
-    } else {
-      const alarmSound = new Audio(alertNoise);
-      alarmSound.loop = true;
-      alarmSound.play();
-      audioRef.current = alarmSound;
-      setIsAlarmActive(true);
     }
   };
 

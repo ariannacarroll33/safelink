@@ -28,7 +28,7 @@ import './components.css';
 // FIREBASE INTEGRATION
 import { auth, db } from '../services/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, DocumentReference, DocumentData } from 'firebase/firestore';
 
 // Capacitor Contacts plugin import
 import { Contacts } from '@capacitor-community/contacts';
@@ -89,6 +89,7 @@ const HomePage = () => {
   const polylineIdsRef = useRef<string[]>([]);
   const routePathRef = useRef<{ lat: number; lng: number }[]>([]);
   const routeIndexRef = useRef(0);
+  const tripDocRef = useRef<DocumentReference<DocumentData> | null>(null);
 
   // Synchronized Profile Fetching Strategy
   const fetchUserProfile = () => {
@@ -323,6 +324,15 @@ const HomePage = () => {
           return;
         }
         if (!position || !googleMapRef.current) return;
+
+        // Update Firestore with new position
+        if (tripDocRef.current) {
+  updateDoc(tripDocRef.current, {
+    lat: position.coords.latitude,
+    lng: position.coords.longitude,
+    updatedAt: Date.now(),
+  });
+}
 
         googleMapRef.current.setCamera({
           coordinate: {
