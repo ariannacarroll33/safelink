@@ -125,7 +125,7 @@ const createMap = async () => {
   }
 
    if (tripDocRef.current) {
-    setTripLink(`https://safelink-2acc5.web.app/watch/${tripDocRef.current.id}`); // For sharing trip.
+    setTripLink(`https://safelink-2acc5.web.app/watch/${tripDocRef.current.id}`); // URL link for safelink-watcher
   }
 
   const newMap = await GoogleMap.create({
@@ -245,6 +245,14 @@ const getDirections = async (
   const endLocation = route.legs[0].end_location; // { lat, lng }
 
   destCoordsRef.current = { lat: endLocation.lat, lng: endLocation.lng }; // Storing destination. Same with endLocation.
+
+  // Storing destinations long/lat for Safelink-Watcher
+if (tripDocRef.current) {
+  updateDoc(tripDocRef.current, {
+    destLat: endLocation.lat,
+    destLng: endLocation.lng,
+  });
+}
 
   const decodedPoints = polyline.decode(points);
   const path = decodedPoints.map(([lat, lng]) => ({ lat, lng }));
