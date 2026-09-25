@@ -24,10 +24,10 @@ import {
 
 import { useHistory } from 'react-router-dom';
 
-// FIREBASE INTEGRATION
+// FIREBASE INTEGRATION (Añadido doc y setDoc de Firestore)
 import { auth, db } from '../services/firebaseConfig';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 
 const COUNTRIES = [
   { code: '+49', name: 'Germany', flag: '🇩🇪' },
@@ -109,6 +109,18 @@ const CreateUser: React.FC = () => {
 
   const selectedCountry = COUNTRIES.find(c => c.code === countryPrefix) || COUNTRIES[11];
 
+  const handleSignUp = (uid: string, fullPhone: string) => {
+    const newUserData = {
+      id: uid,
+      name: name.trim(),
+      email: email.trim(),
+      phone: fullPhone,
+      username: username.trim().toLowerCase().replace(/^@/, '')
+    };
+
+    localStorage.setItem('safelink_user', JSON.stringify(newUserData));
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     const currentErrors: { [key: string]: boolean } = {};
@@ -171,6 +183,16 @@ const CreateUser: React.FC = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       firebaseUid = userCredential.user.uid;
 
+      // 3. GUARDAR PERFIL COMPLETO EN FIRESTORE (Paso 1 Integrado)
+      await setDoc(doc(db, 'users', firebaseUid), {
+        uid: firebaseUid,
+        name: name.trim(),
+        username: cleanUsername,
+        email: email.trim(),
+        phone: fullPhoneNumber,
+        createdAt: new Date().toISOString()
+      });
+
     } catch (fbError: any) {
       console.warn('Firebase Notice (Proceeding to verification screen):', fbError);
 
@@ -183,7 +205,10 @@ const CreateUser: React.FC = () => {
       }
     }
 
-    // 3. Stop loader and force screen transition
+    // 4. Save user data to localStorage
+    handleSignUp(firebaseUid, fullPhoneNumber);
+
+    // 5. Stop loader and force screen transition
     setLoading(false);
 
     console.log('Navigating to /verificationCode screen...');
