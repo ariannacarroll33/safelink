@@ -28,7 +28,7 @@ import './components.css';
 // FIREBASE INTEGRATION
 import { auth, db } from '../services/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, updateDoc, DocumentReference, DocumentData } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, DocumentReference, DocumentData } from 'firebase/firestore';
 
 // Capacitor Contacts plugin import
 import { Contacts } from '@capacitor-community/contacts';
@@ -39,6 +39,7 @@ interface ContactItem {
   contactId: string;
   displayName: string;
   phoneNumber?: string;
+  fcmToken?: string; // FCM Token for Push Notifications
   selected: boolean;
 }
 
@@ -248,10 +249,35 @@ const HomePage = () => {
     );
   };
 
+  // --- BEGIN TRIP (FIRESTORE TRIGGER FOR PUSH NOTIFICATION) ---
   const handleBeginTrip = async () => {
     const selectedContacts = contacts.filter((c) => c.selected);
     const tripId = `trip_${Date.now()}`;
     
+    // Extract recipient FCM tokens for Push Notifications
+    const recipientTokens: string[] = selectedContacts
+      .map((c) => c.fcmToken)
+      .filter((token): token is string => Boolean(token));
+
+    // Reference to Firestore Document
+    const tripRef = doc(db, 'trips', tripId);
+    tripDocRef.current = tripRef;
+
+    try {
+      // Writing to 'trips' fires Cloud Function 'onTripCreated'
+      await setDoc(tripRef, {
+        tripId,
+        userName: userName || 'SafeLink User',
+        destination: destinationInput,
+        status: 'traveling',
+        recipientTokens,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    } catch (err) {
+      console.error('Error saving trip to Firestore:', err);
+    }
+
     const generatedLink = `https://yourdomain.com/track?tripId=${tripId}`;
     setShareableLink(generatedLink);
 
@@ -268,6 +294,22 @@ const HomePage = () => {
     }
 
     setTripStatus('traveling');
+  };
+
+  // --- ARRIVED / END TRIP (FIRESTORE TRIGGER FOR ARRIVAL NOTIFICATION) ---
+  const handleEndTrip = async () => {
+    if (tripDocRef.current) {
+      try {
+        // Updating status to 'arrived' fires Cloud Function 'onTripStatusUpdated'
+        await updateDoc(tripDocRef.current, {
+          status: 'arrived',
+          updatedAt: Date.now(),
+        });
+      } catch (err) {
+        console.error('Error updating trip arrival:', err);
+      }
+    }
+    setTripStatus('arrived');
   };
 
   const createMap = async () => {
@@ -327,12 +369,12 @@ const HomePage = () => {
 
         // Update Firestore with new position
         if (tripDocRef.current) {
-  updateDoc(tripDocRef.current, {
-    lat: position.coords.latitude,
-    lng: position.coords.longitude,
-    updatedAt: Date.now(),
-  });
-}
+          updateDoc(tripDocRef.current, {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            updatedAt: Date.now(),
+          });
+        }
 
         googleMapRef.current.setCamera({
           coordinate: {
@@ -383,7 +425,7 @@ const HomePage = () => {
             destCoordsRef.current
           );
           if (dist < 50) {
-            setTripStatus('arrived');
+            handleEndTrip();
           }
         }
       }
@@ -648,7 +690,7 @@ const HomePage = () => {
 
             <IonButton
               className="large-button"
-              onClick={() => setTripStatus('arrived')}
+              onClick={handleEndTrip}
               style={{ margin: '16px' }}
             >
               End Trip
@@ -677,6 +719,7 @@ const HomePage = () => {
                 setEta('');
                 destCoordsRef.current = null;
                 googleMapRef.current = null;
+                tripDocRef.current = null;
               }}
             >
               Back to Start
