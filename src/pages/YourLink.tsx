@@ -1,393 +1,62 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  IonContent,
-  IonHeader,
-  IonPage,
-  IonTitle,
-  IonToolbar,
-  IonButtons,
-  IonButton,
-  IonIcon,
-  IonAvatar,
-  IonToast,
-  IonAlert,
-  IonList,
-  IonItem,
-  IonLabel,
-  useIonViewWillEnter
-} from '@ionic/react';
+import React, { useState, useRef } from 'react';
+import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
-import {
-  notificationsOutline,
-  navigateOutline,
-  linkOutline,
-  cameraOutline,
-  personOutline,
-  createOutline,
-  callOutline,
-  peopleOutline,
-  addCircleOutline,
-} from 'ionicons/icons';
-import { QRCodeSVG } from 'qrcode.react';
+import { notificationsOutline } from 'ionicons/icons';
 import './YourLink.css';
 import alertNoise from '../assets/mixkit-facility-alarm-sound-999.wav';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
-// FIREBASE INTEGRATION
-import { auth, db } from '../services/firebaseConfig';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
-interface EmergencyContact {
-  id: string;
-  name: string;
-  phone: string;
-  relation?: string;
+const YourLinkPage = () => {
+  const history = useHistory();
+  const [isAlarmActive, setIsAlarmActive] = useState(false);
+  const intervalref = useRef<number | null>(null);
+
+
+  function startAlarm() {
+  const alarmSound = new Audio(alertNoise);
+  alarmSound.loop = true;
+  alarmSound.play();
+  audioRef.current = alarmSound;
+
+  // Start repeating vibration
+  intervalref.current = window.setInterval(() => {
+    Haptics.impact({ style: ImpactStyle.Heavy });
+  }, 500); 
 }
 
-const YourLinkPage: React.FC = () => {
-  const history = useHistory();
 
-  // 1. REFS
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // useRef hook. Controls pause / play of audio. 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const watchIdRef = useRef<number | null>(null);
-  const intervalRef = useRef<number | null>(null);
-
-  // 2. USER STATES
-  const [userId, setUserId] = useState<string>('');
-  const [userName, setUserName] = useState<string>('User Account');
-  const [userEmail, setUserEmail] = useState<string>('');
-  const [userPhone, setUserPhone] = useState<string>('');
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
-
-  // 3. GEOLOCATION STATES
-  const [isLive, setIsLive] = useState<boolean>(false);
-  const [userLocation, setUserLocation] = useState<string>('Location sharing disabled');
-  const [lastKnownLocation, setLastKnownLocation] = useState<string>('');
-
-  // 4. UI STATES
-  const [isAlarmActive, setIsAlarmActive] = useState<boolean>(false);
-  const [showToast, setShowToast] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<string>('');
-  const [showEditAlert, setShowEditAlert] = useState<boolean>(false);
-  const [showPhoneAlert, setShowPhoneAlert] = useState<boolean>(false);
-  const [showAddContactAlert, setShowAddContactAlert] = useState<boolean>(false);
-
-  // 5. LOAD USER DATA FUNCTION
-  const loadUserData = async () => {
-    // Carga de sesión/caché local
-    const savedAvatar = localStorage.getItem('avatarUrl');
-    if (savedAvatar) setProfileImage(savedAvatar);
-
-    const savedSession = localStorage.getItem('safelink_user');
-    if (savedSession) {
-      try {
-        const parsed = JSON.parse(savedSession);
-        if (parsed.id) setUserId(parsed.id);
-        if (parsed.name) setUserName(parsed.name);
-        if (parsed.phone) setUserPhone(parsed.phone);
-        if (parsed.avatarUrl) setProfileImage(parsed.avatarUrl);
-        if (parsed.emergencyContacts) setEmergencyContacts(parsed.emergencyContacts);
-      } catch (e) {
-        console.error('Error parsing local storage user data:', e);
-      }
-    }
-
-    // Carga de Firebase Auth & Firestore
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUserId(user.uid);
-        if (user.email) setUserEmail(user.email);
-
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            if (data.name) setUserName(data.name);
-            if (data.phone) setUserPhone(data.phone);
-            if (data.avatarUrl) setProfileImage(data.avatarUrl);
-            if (data.emergencyContacts) setEmergencyContacts(data.emergencyContacts);
-          }
-        } catch (e) {
-          console.error('Error fetching Firestore user data:', e);
-        }
-      }
-    });
-  };
-
-  useIonViewWillEnter(() => {
-    loadUserData();
-  });
-
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
-  // REAL-TIME GPS GEOLOCATION
-  useEffect(() => {
-    if (!isLive) {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-      return;
-    }
-
-    if ('geolocation' in navigator) {
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-
-          try {
-            const res = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-            );
-            const data = await res.json();
-            const city = data.address?.city || data.address?.town || data.address?.village || '';
-            const road = data.address?.road || data.address?.suburb || '';
-            const locationString = road ? `${road}, ${city}` : `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-
-            setUserLocation(locationString);
-            setLastKnownLocation(locationString);
-          } catch (err) {
-            const fallback = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-            setUserLocation(fallback);
-            setLastKnownLocation(fallback);
-          }
-        },
-        (error) => {
-          console.warn('GPS Error:', error.message);
-          setUserLocation('Location Permission Disabled');
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-      );
-    } else {
-      setUserLocation('Geolocation not supported');
-    }
-
-    return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
-    };
-  }, [isLive]);
-
-  const toggleLiveStatus = () => {
-    if (isLive) {
-      setIsLive(false);
-      setToastMessage('Location sharing paused');
-      setShowToast(true);
-    } else {
-      setIsLive(true);
-      setUserLocation('Updating location...');
-      setToastMessage('Live location enabled');
-      setShowToast(true);
-    }
-  };
-
-  // CONTROL DE ALARMA Y HAPTICS
-  const stopAlarm = () => {
+  const stopAlarmSound = () => {
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current.currentTime = 0;
     }
-    if (intervalRef.current !== null) {
-      window.clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setIsAlarmActive(false);
-  };
+    if (intervalref.current) {
+      window.clearInterval(intervalref.current);
+      intervalref.current = null;
+  }
+};
 
-  const startAlarm = () => {
-    stopAlarm();
 
-    const alarmSound = new Audio(alertNoise);
-    alarmSound.loop = true;
-    alarmSound.play().catch((err) => console.error('Audio play error:', err));
-    audioRef.current = alarmSound;
-
-    intervalRef.current = window.setInterval(() => {
-      Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
-    }, 500);
-
-    setIsAlarmActive(true);
-  };
-
+  // Button logic. Kept console.log for testing.
   const toggleAlarm = () => {
     if (isAlarmActive) {
-      stopAlarm();
+      stopAlarmSound();
+      setIsAlarmActive(false);
+      console.log("Alarm Stopped!");
     } else {
       startAlarm();
-    }
-  };
-
-  const personalLink = `https://safelink-2acc5.web.app/add-contact?userId=${userId || 'account'}`;
-
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Image = reader.result as string;
-        setProfileImage(base64Image);
-
-        localStorage.setItem('avatarUrl', base64Image);
-        
-        const savedSession = localStorage.getItem('safelink_user');
-        const userData = savedSession ? JSON.parse(savedSession) : { id: userId, name: userName };
-        userData.avatarUrl = base64Image;
-        localStorage.setItem('safelink_user', JSON.stringify(userData));
-        
-        window.dispatchEvent(new Event('safelink_user_updated'));
-
-        if (auth.currentUser) {
-          try {
-            await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-              avatarUrl: base64Image
-            });
-          } catch (e) {
-            console.error('Error updating photo in Firestore:', e);
-          }
-        }
-
-        setToastMessage('Profile picture updated!');
-        setShowToast(true);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSaveName = async (newName: string) => {
-    if (newName && newName.trim().length > 0) {
-      const updated = newName.trim();
-      setUserName(updated);
-
-      const savedSession = localStorage.getItem('safelink_user');
-      const userData = savedSession ? JSON.parse(savedSession) : { id: userId };
-      userData.name = updated;
-      localStorage.setItem('safelink_user', JSON.stringify(userData));
-      window.dispatchEvent(new Event('safelink_user_updated'));
-
-      if (auth.currentUser) {
-        try {
-          await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-            name: updated
-          });
-        } catch (e) {
-          console.error('Error updating name in Firestore:', e);
-        }
-      }
-
-      setToastMessage('Name updated!');
-      setShowToast(true);
-    }
-  };
-
-  const handleSavePhone = async (newPhone: string) => {
-    if (newPhone && newPhone.trim().length > 0) {
-      const updated = newPhone.trim();
-      setUserPhone(updated);
-
-      const savedSession = localStorage.getItem('safelink_user');
-      const userData = savedSession ? JSON.parse(savedSession) : { id: userId };
-      userData.phone = updated;
-      localStorage.setItem('safelink_user', JSON.stringify(userData));
-      window.dispatchEvent(new Event('safelink_user_updated'));
-
-      if (auth.currentUser) {
-        try {
-          await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-            phone: updated
-          });
-        } catch (e) {
-          console.error('Error updating phone in Firestore:', e);
-        }
-      }
-
-      setToastMessage('Phone number updated!');
-      setShowToast(true);
-    }
-  };
-
-  const handleAddEmergencyContact = async (contactName: string, contactPhone: string, contactRelation?: string) => {
-    if (contactName && contactPhone) {
-      const newContact: EmergencyContact = {
-        id: `contact_${Date.now()}`,
-        name: contactName.trim(),
-        phone: contactPhone.trim(),
-        relation: contactRelation?.trim() || 'Contact',
-      };
-
-      const updatedList = [...emergencyContacts, newContact];
-      setEmergencyContacts(updatedList);
-
-      const savedSession = localStorage.getItem('safelink_user');
-      const userData = savedSession ? JSON.parse(savedSession) : { id: userId };
-      userData.emergencyContacts = updatedList;
-      localStorage.setItem('safelink_user', JSON.stringify(userData));
-
-      if (auth.currentUser) {
-        try {
-          await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-            emergencyContacts: updatedList
-          });
-        } catch (e) {
-          console.error('Error updating emergency contacts in Firestore:', e);
-        }
-      }
-
-      setToastMessage('Emergency contact added!');
-      setShowToast(true);
-    }
-  };
-
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(personalLink);
-      setToastMessage('Link copied to clipboard!');
-      setShowToast(true);
-    } catch (err) {
-      setToastMessage('Error copying link');
-      setShowToast(true);
-    }
-  };
-
-  const handleSendViaText = async () => {
-    const shareData = {
-      title: `${userName}'s SafeLink Profile`,
-      text: `Hi! Add ${userName} as an emergency contact on SafeLink: ${personalLink}`,
-      url: personalLink,
-    };
-
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-      } catch (e) {
-        console.log('Sharing canceled');
-      }
-    } else {
-      window.location.href = `sms:?&body=${encodeURIComponent(shareData.text)}`;
+      setIsAlarmActive(true);
+      console.log("Alarm Started!");
     }
   };
 
   return (
     <IonPage>
-      <IonHeader className="ion-no-border">
-        <IonToolbar className="header-toolbar">
-          <IonButtons slot="start">
-            <IonAvatar className="header-avatar">
-              {profileImage ? (
-                <img src={profileImage} alt={userName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <div className="empty-avatar-circle header-empty-circle">
-                  <IonIcon icon={personOutline} />
-                </div>
-              )}
-            </IonAvatar>
-          </IonButtons>
-          <IonTitle className="ion-text-center header-title">SafeLink</IonTitle>
+      <IonHeader>
+        <IonToolbar>
+          <IonTitle className="ion-text-center">Your Link</IonTitle>
           <IonButtons slot="end">
             <IonButton onClick={() => history.push('/notifications')}>
               <IonIcon icon={notificationsOutline} />
@@ -396,242 +65,26 @@ const YourLinkPage: React.FC = () => {
         </IonToolbar>
       </IonHeader>
 
-      <IonContent className="yourlink-content">
-        <div className="location-pill-container">
-          <div className={`location-pill ${isLive ? 'pill-active' : 'pill-paused'}`}>
-            <IonIcon icon={navigateOutline} className="location-icon" />
-            <div className="location-info">
-              <span className="location-label">
-                {isLive ? 'Current location' : 'Last known location'}
-              </span>
-              <span className="location-address">
-                {isLive ? userLocation : lastKnownLocation || 'Sharing Paused'}
-              </span>
-            </div>
+      <IonContent>
 
-            <button
-              type="button"
-              className={`live-badge-btn ${isLive ? 'badge-live' : 'badge-paused'}`}
-              onClick={toggleLiveStatus}
-            >
-              <span className={`live-dot ${isLive ? 'dot-green' : 'dot-red'}`}></span>
-              {isLive ? 'Live' : 'Off'}
-            </button>
-          </div>
-        </div>
-
-        <div className="profile-hero-section">
-          <div
-            className="avatar-wrapper"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {profileImage ? (
-              <img src={profileImage} alt={userName} className="main-profile-img" />
-            ) : (
-              <div className="empty-avatar-circle main-empty-circle">
-                <IonIcon icon={personOutline} />
-              </div>
-            )}
-            <div className="camera-overlay">
-              <IonIcon icon={cameraOutline} />
-            </div>
-          </div>
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImageUpload}
-            accept="image/*"
-            style={{ display: 'none' }}
-          />
-
-          <div className="hero-text-container">
-            <span className="hero-subtitle">Your Personal Link</span>
-            <div className="editable-name-row" onClick={() => setShowEditAlert(true)}>
-              <h1 className="hero-title">{userName}</h1>
-              <IonIcon icon={createOutline} className="edit-icon" />
-            </div>
-          </div>
-        </div>
-
-        {/* PHONE NUMBER CARD */}
-        <div className="info-card" style={{ margin: '0 16px 16px', padding: '16px', backgroundColor: '#FFFFFF', borderRadius: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <IonIcon icon={callOutline} style={{ fontSize: '20px', color: '#633A0E' }} />
-              <div>
-                <span style={{ fontSize: '12px', color: '#888', display: 'block' }}>Phone Number</span>
-                <strong style={{ fontSize: '15px', color: '#333' }}>{userPhone || 'Not provided'}</strong>
-              </div>
-            </div>
-            <IonButton fill="clear" onClick={() => setShowPhoneAlert(true)}>
-              <IonIcon icon={createOutline} style={{ color: '#633A0E' }} />
-            </IonButton>
-          </div>
-        </div>
-
-        {/* EMERGENCY CONTACTS CARD */}
-        <div className="info-card" style={{ margin: '0 16px 16px', padding: '16px', backgroundColor: '#FFFFFF', borderRadius: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <IonIcon icon={peopleOutline} style={{ fontSize: '20px', color: '#633A0E' }} />
-              <strong style={{ fontSize: '16px', color: '#633A0E' }}>Emergency Contacts</strong>
-            </div>
-            <IonButton fill="clear" onClick={() => setShowAddContactAlert(true)}>
-              <IonIcon icon={addCircleOutline} style={{ fontSize: '22px', color: '#633A0E' }} />
-            </IonButton>
-          </div>
-
-          <IonList lines="none" style={{ background: 'transparent' }}>
-            {emergencyContacts.length === 0 ? (
-              <p style={{ fontSize: '13px', color: '#888', textAlign: 'center', margin: '8px 0' }}>
-                No emergency contacts added yet.
-              </p>
-            ) : (
-              emergencyContacts.map((contact) => (
-                <IonItem key={contact.id} style={{ '--background': '#F9F9F9', borderRadius: '10px', marginBottom: '8px' }}>
-                  <IonLabel>
-                    <h3 style={{ fontWeight: '700', color: '#333' }}>{contact.name}</h3>
-                    <p style={{ color: '#666', fontSize: '12px' }}>{contact.relation} • {contact.phone}</p>
-                  </IonLabel>
-                  <IonButton slot="end" fill="clear" href={`tel:${contact.phone}`}>
-                    <IonIcon icon={callOutline} style={{ color: '#2e7d32' }} />
-                  </IonButton>
-                </IonItem>
-              ))
-            )}
-          </IonList>
-        </div>
-
-        {/* SHARING CARD */}
-        <div className="share-card">
-          <p className="card-subtitle">Share your contact and live location with anyone</p>
-          <h2 className="card-title">Your Personal QR</h2>
-
-          <div className="qr-container">
-            <QRCodeSVG
-              value={personalLink}
-              size={180}
-              bgColor="#ffffff"
-              fgColor="#000000"
-              level="H"
-              includeMargin={true}
-            />
-          </div>
-
-          <div className="link-box" onClick={handleCopyLink}>
-            <IonIcon icon={linkOutline} className="link-icon" />
-            <span className="link-text">{personalLink}</span>
-          </div>
-
+        
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            gap: '20px'
+          }}
+        >
           <IonButton
-            className="send-text-btn"
-            expand="block"
-            onClick={handleSendViaText}
+            className={isAlarmActive ? "sos-button-on" : "sos-button-off"}
+            onClick={toggleAlarm}
           >
-            Send via. Text
+            {isAlarmActive ? "STOP ALARM" : "TRIGGER SOS"}
           </IonButton>
-
-          <p className="card-footer-text">
-            Your link never changes. Just like the app, others can only see your location whilst you're live.
-          </p>
-
-          <div style={{ marginTop: '24px' }}>
-            <IonButton
-              className={isAlarmActive ? 'sos-button-on' : 'sos-button-off'}
-              onClick={toggleAlarm}
-            >
-              {isAlarmActive ? 'STOP ALARM' : 'TRIGGER SOS'}
-            </IonButton>
-          </div>
         </div>
-
-        {/* EDIT NAME MODAL */}
-        <IonAlert
-          isOpen={showEditAlert}
-          onDidDismiss={() => setShowEditAlert(false)}
-          header="Change Display Name"
-          inputs={[
-            {
-              name: 'newName',
-              type: 'text',
-              placeholder: 'Enter your name',
-              value: userName,
-            },
-          ]}
-          buttons={[
-            { text: 'Cancel', role: 'cancel' },
-            {
-              text: 'Save',
-              handler: (data) => handleSaveName(data.newName),
-            },
-          ]}
-        />
-
-        {/* EDIT PHONE MODAL */}
-        <IonAlert
-          isOpen={showPhoneAlert}
-          onDidDismiss={() => setShowPhoneAlert(false)}
-          header="Update Phone Number"
-          inputs={[
-            {
-              name: 'newPhone',
-              type: 'tel',
-              placeholder: '+1 555-0000',
-              value: userPhone,
-            },
-          ]}
-          buttons={[
-            { text: 'Cancel', role: 'cancel' },
-            {
-              text: 'Save',
-              handler: (data) => handleSavePhone(data.newPhone),
-            },
-          ]}
-        />
-
-        {/* ADD EMERGENCY CONTACT MODAL */}
-        <IonAlert
-          isOpen={showAddContactAlert}
-          onDidDismiss={() => setShowAddContactAlert(false)}
-          header="Add Emergency Contact"
-          inputs={[
-            {
-              name: 'contactName',
-              type: 'text',
-              placeholder: 'Name (e.g. John Doe)',
-            },
-            {
-              name: 'contactPhone',
-              type: 'tel',
-              placeholder: 'Phone (+1 555-0000)',
-            },
-            {
-              name: 'contactRelation',
-              type: 'text',
-              placeholder: 'Relationship (e.g. Spouse, Friend)',
-            },
-          ]}
-          buttons={[
-            { text: 'Cancel', role: 'cancel' },
-            {
-              text: 'Add',
-              handler: (data) =>
-                handleAddEmergencyContact(
-                  data.contactName,
-                  data.contactPhone,
-                  data.contactRelation
-                ),
-            },
-          ]}
-        />
-
-        <IonToast
-          isOpen={showToast}
-          onDidDismiss={() => setShowToast(false)}
-          message={toastMessage}
-          duration={2000}
-        />
       </IonContent>
     </IonPage>
   );
