@@ -1,37 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  IonContent,
-  IonHeader,
-  IonPage,
-  IonTitle,
-  IonToolbar,
-  IonButtons,
-  IonButton,
-  IonIcon,
-  IonAvatar,
-  IonToast,
-  IonAlert,
-  IonList,
-  IonItem,
-  IonLabel,
-  useIonViewWillEnter
-} from '@ionic/react';
+import {IonContent, IonHeader,IonPage,IonTitle,IonToolbar, IonButtons,IonButton,IonIcon,IonAvatar,IonToast,IonAlert,IonList,IonItem,IonLabel,useIonViewWillEnter} from '@ionic/react';
 import { useHistory } from 'react-router-dom';
-import {
-  notificationsOutline,
-  navigateOutline,
-  linkOutline,
-  cameraOutline,
-  personOutline,
-  createOutline,
-  callOutline,
-  peopleOutline,
-  addCircleOutline,
-} from 'ionicons/icons';
+import {notificationsOutline,navigateOutline,linkOutline,cameraOutline,personOutline,createOutline,callOutline,peopleOutline,addCircleOutline,} from 'ionicons/icons';
 import { QRCodeSVG } from 'qrcode.react';
 import './YourLink.css';
 import alertNoise from '../assets/mixkit-facility-alarm-sound-999.wav';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+
 
 // FIREBASE INTEGRATION
 import { auth, db } from '../services/firebaseConfig';
@@ -53,6 +28,7 @@ const YourLinkPage: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const intervalRef = useRef<number | null>(null);
+  
 
   // 2. USER STATES
   const [userId, setUserId] = useState<string>('');
@@ -77,7 +53,6 @@ const YourLinkPage: React.FC = () => {
 
   // 5. LOAD USER DATA FUNCTION
   const loadUserData = async () => {
-    // Carga de sesión/caché local
     const savedAvatar = localStorage.getItem('avatarUrl');
     if (savedAvatar) setProfileImage(savedAvatar);
 
@@ -95,7 +70,7 @@ const YourLinkPage: React.FC = () => {
       }
     }
 
-    // Carga de Firebase Auth & Firestore
+    // Firebase Auth & Firestore --> to fetch personal info.
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserId(user.uid);
@@ -125,7 +100,7 @@ const YourLinkPage: React.FC = () => {
     loadUserData();
   }, []);
 
-  // REAL-TIME GPS GEOLOCATION
+  // REAL-TIME GPS GEOLOCATION (on and off switcher)
   useEffect(() => {
     if (!isLive) {
       if (watchIdRef.current !== null) {
@@ -187,42 +162,46 @@ const YourLinkPage: React.FC = () => {
     }
   };
 
-  // CONTROL DE ALARMA Y HAPTICS
-  const stopAlarm = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    if (intervalRef.current !== null) {
-      window.clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setIsAlarmActive(false);
-  };
+  // SOS ALARM
+function startAlarm() {
+const alarmSound = new Audio(alertNoise);
+alarmSound.loop = true;
+alarmSound.play();
+audioRef.current = alarmSound;
 
-  const startAlarm = () => {
-    stopAlarm();
+// Start repeating vibration
+intervalRef.current = window.setInterval(() => {
+Haptics.impact({ style: ImpactStyle.Heavy });
+}, 500);
+}
 
-    const alarmSound = new Audio(alertNoise);
-    alarmSound.loop = true;
-    alarmSound.play().catch((err) => console.error('Audio play error:', err));
-    audioRef.current = alarmSound;
 
-    intervalRef.current = window.setInterval(() => {
-      Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
-    }, 500);
+// useRef hook. Controls pause / play of audio.
+const stopAlarmSound = () => {
+if (audioRef.current) {
+audioRef.current.pause();
+}
+if (intervalRef.current) {
+window.clearInterval(intervalRef.current);
+intervalRef.current = null;
+}
+};
 
-    setIsAlarmActive(true);
-  };
 
-  const toggleAlarm = () => {
-    if (isAlarmActive) {
-      stopAlarm();
-    } else {
-      startAlarm();
-    }
-  };
+// Button logic. Kept console.log for testing.
+const toggleAlarm = () => {
+if (isAlarmActive) {
+stopAlarmSound();
+setIsAlarmActive(false);
+console.log("Alarm Stopped!");
+} else {
+startAlarm();
+setIsAlarmActive(true);
+console.log("Alarm Started!");
+}
+};
 
+// Your link 
   const personalLink = `https://safelink-2acc5.web.app/add-contact?userId=${userId || 'account'}`;
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -258,7 +237,7 @@ const YourLinkPage: React.FC = () => {
       reader.readAsDataURL(file);
     }
   };
-
+// fetch info from the sign up form 
   const handleSaveName = async (newName: string) => {
     if (newName && newName.trim().length > 0) {
       const updated = newName.trim();
@@ -284,7 +263,7 @@ const YourLinkPage: React.FC = () => {
       setShowToast(true);
     }
   };
-
+// edit or have info about your details
   const handleSavePhone = async (newPhone: string) => {
     if (newPhone && newPhone.trim().length > 0) {
       const updated = newPhone.trim();

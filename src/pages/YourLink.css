@@ -304,16 +304,28 @@
   max-width: 300px;
 }
 
+/* Outer button sizing & circular shape */ /* ariannas sos css code, just added the important tag so the code knows its this design and not other */
 .sos-button-off {
-  --background: #d32f2f;
-  --color: #ffffff;
-  --border-radius: 12px;
-  font-weight: bold;
+--background: var(--red-dark, #8b0000); /* Fallback color included */
+width: 200px !important;
+height: 200px !important;
+--border-radius: 50% !important;
+border-radius: 50% !important;
 }
 
 .sos-button-on {
-  --background: #000000;
-  --color: #ffffff;
-  --border-radius: 12px;
-  font-weight: bold;
+--background: var(--grey-600, #555555); /* Fallback color included */
+width: 200px !important;
+height: 200px !important;
+--border-radius: 50% !important;
+border-radius: 50% !important;
 }
+
+/* White ring applied exclusively to the inner button element */
+.sos-button-off::part(native),
+.sos-button-on::part(native) {
+border-radius: 50% !important;
+border: 7px solid var(--white, #ffffff)!important;
+width: 100% !important;
+height: 100% !important;
+} 

@@ -42,10 +42,10 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We need your location to track your journey and share it when necessary</string>
 	<key>NSContactsUsageDescription</key>
 	<string>We need access to your contacts to select emergency and your contacts</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We need your location to track your journey and share it when necessary</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to track your journey and share it when neccesary</string>
 	<key>UIBackgroundModes</key>

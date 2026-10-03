@@ -3,23 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GoogleMap } from '@capacitor/google-maps';
 import { Geolocation } from '@capacitor/geolocation';
 import polyline from '@mapbox/polyline';
-import {
-  IonContent,
-  IonHeader,
-  IonPage,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonButton,
-  IonIcon,
-  IonInput,
-  IonCheckbox,
-  IonList,
-  IonItem,
-  IonLabel,
-  IonAvatar,
-  useIonViewWillEnter
-} from '@ionic/react';
+import {IonContent,IonHeader,IonPage,IonToolbar, IonTitle,IonButtons,IonButton,IonIcon,IonInput,IonCheckbox,IonList,IonItem,IonLabel,IonAvatar,useIonViewWillEnter} from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { notificationsOutline, searchOutline, personOutline } from 'ionicons/icons';
 import './Home.css';
@@ -82,16 +66,18 @@ const HomePage = () => {
   const [shareableLink, setShareableLink] = useState('');
 
   // Map Refs
-  const mapRef = useRef<HTMLElement>(null);
-  const googleMapRef = useRef<GoogleMap | null>(null);
-  const watchIdRef = useRef<string | null>(null);
+  const mapRef = useRef<HTMLElement>(null); // HTML Element.Empty box. Filled later with google maps.
+  const googleMapRef = useRef<GoogleMap | null>(null); // Googlemap object. Used later for directions & camera moving. Used with newmaps.
+  const watchIdRef = useRef<string | null>(null); // String. NEW — holds the watch ID so we can cancel it on cleanup
   const destCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // Polyline Refs
   const polylineIdsRef = useRef<string[]>([]);
   const routePathRef = useRef<{ lat: number; lng: number }[]>([]);
   const routeIndexRef = useRef(0);
   const tripDocRef = useRef<DocumentReference<DocumentData> | null>(null);
 
-  // Synchronized Profile Fetching Strategy
+  // Synchronized Profile Fetching Strategy -- basically that recoginzes the log in info to the page
   const fetchUserProfile = () => {
     // 1. Prioritize LocalStorage uploaded avatar and saved user object
     const savedAvatar = localStorage.getItem('avatarUrl');
@@ -110,7 +96,7 @@ const HomePage = () => {
       }
     }
 
-    // 2. Sync with Firestore DB (overrides Google default photo with app avatar)
+    // Sync with Firestore DB (default photo with app avatar)
     onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         try {
@@ -132,11 +118,11 @@ const HomePage = () => {
       }
     });
   };
-
+// Refresh user profile whenever the Ionic view is entered/navigated
   useIonViewWillEnter(() => {
     fetchUserProfile();
   });
-
+// Global listeners to re-fetch profile on custom updates 
   useEffect(() => {
     fetchUserProfile();
 
@@ -152,12 +138,12 @@ const HomePage = () => {
       window.removeEventListener('storage', handleProfileUpdate);
     };
   }, []);
-
+// Manage Google Map + tracking : When status traveling. If the map is not created, create it. 
   useEffect(() => {
     if (tripStatus === 'traveling' && mapRef.current) {
       createMap();
     }
-
+// Stop active Geolocation watcher when leaving traveling status
     return () => {
       if (watchIdRef.current) {
         Geolocation.clearWatch({ id: watchIdRef.current });
@@ -171,7 +157,8 @@ const HomePage = () => {
       loadDeviceContacts();
     }
   }, [isDestinationSelected]);
-
+// Load device contacts automatically as soon as a destination is selected
+// Request contact permissions and fetch device contacts 
   const loadDeviceContacts = async () => {
     try {
       const checkStatus = await Contacts.checkPermissions();
@@ -208,14 +195,9 @@ const HomePage = () => {
   };
 
   const useFallbackContacts = () => {
-    setContacts([
-      { contactId: '1', displayName: 'Alex Johnson', phoneNumber: '+1 555-0199', selected: false },
-      { contactId: '2', displayName: 'Emily Davis', phoneNumber: '+1 555-0142', selected: false },
-      { contactId: '3', displayName: 'Michael Brown', phoneNumber: '+1 555-0188', selected: false },
-      { contactId: '4', displayName: 'Sarah Wilson', phoneNumber: '+1 555-0123', selected: false },
-    ]);
+   
   };
-
+// Fetch address auto-complete suggestions from Google Places
   const fetchPredictions = async (input: string) => {
     if (!input.trim()) {
       setPredictions([]);
@@ -230,14 +212,14 @@ const HomePage = () => {
     const data = await res.json();
     setPredictions(data.status === 'OK' ? data.predictions : []);
   };
-
+// Handle destination input changes 
   const handleDestinationChange = (value: string) => {
     setDestinationInput(value);
     setIsDestinationSelected(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => fetchPredictions(value), 300);
   };
-
+// Toggle selection status for emergency contacts list checkboxes
   const toggleContactSelection = (contactId: string) => {
     setContacts((prev) =>
       prev.map((item) =>
@@ -247,14 +229,14 @@ const HomePage = () => {
       )
     );
   };
-
+// BEGIN TRIP (FIRESTORE TRIGGER FOR PUSH NOTIFICATION):Generate tracking link, open Web Share sheet if available, and transition to traveling state
   const handleBeginTrip = async () => {
     const selectedContacts = contacts.filter((c) => c.selected);
     const tripId = `trip_${Date.now()}`;
     
     const generatedLink = `https://yourdomain.com/track?tripId=${tripId}`;
     setShareableLink(generatedLink);
-
+// Trigger native Web Share API dialog if supported
     if (navigator.share && selectedContacts.length > 0) {
       try {
         await navigator.share({
@@ -269,10 +251,29 @@ const HomePage = () => {
 
     setTripStatus('traveling');
   };
+// --- ARRIVED / END TRIP ---
+const handleEndTrip = async () => {
+  if (watchIdRef.current) {
+    Geolocation.clearWatch({ id: watchIdRef.current });
+    watchIdRef.current = null;
+  }
+  if (tripDocRef.current) {
+    try {
+      await updateDoc(tripDocRef.current, {
+        status: 'arrived',
+        updatedAt: Date.now(),
+      });
+    } catch (err) {
+      console.error('Error updating trip arrival:', err);
+    }
+  }
+  setTripStatus('arrived');
+};
 
+// Required for Capacitor Google Map: plugin. Asks permission to use location. Pop up. requestPermission.  draw route polylines, sync live GPS to Firestore, and trim route
   const createMap = async () => {
     if (!mapRef.current) return;
-
+// Check location permissions
     const permission = await Geolocation.requestPermissions();
     if (
       permission.location !== 'granted' &&
@@ -281,13 +282,13 @@ const HomePage = () => {
       console.error('Location permission was not granted');
       return;
     }
-
+// Get user current GPS coordinates, // getCurrentPosition API from geolocation plugin. Only retireves inital position.
     const currentPosition = await Geolocation.getCurrentPosition({
       enableHighAccuracy: true,
       timeout: 10000,
       maximumAge: 1000,
     });
-
+// Create Google Map 
     const newMap = await GoogleMap.create({
       id: 'trip-map',
       element: mapRef.current,
@@ -312,7 +313,7 @@ const HomePage = () => {
     );
 
     await newMap.enableCurrentLocation(true);
-
+// Start live GPS tracking watcher
     const watchId = await Geolocation.watchPosition(
       {
         enableHighAccuracy: true,
