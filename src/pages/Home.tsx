@@ -229,7 +229,7 @@ const HomePage = () => {
       )
     );
   };
-// Generate tracking link, open Web Share sheet if available, and transition to traveling state
+  // BEGIN TRIP (FIRESTORE TRIGGER FOR PUSH NOTIFICATION):Generate tracking link, open Web Share sheet if available, and transition to traveling state
   const handleBeginTrip = async () => {
     const selectedContacts = contacts.filter((c) => c.selected);
     const tripId = `trip_${Date.now()}`;
@@ -251,6 +251,25 @@ const HomePage = () => {
 
     setTripStatus('traveling');
   };
+// --- ARRIVED / END TRIP ---
+const handleEndTrip = async () => {
+  if (watchIdRef.current) {
+    Geolocation.clearWatch({ id: watchIdRef.current });
+    watchIdRef.current = null;
+  }
+  if (tripDocRef.current) {
+    try {
+      await updateDoc(tripDocRef.current, {
+        status: 'arrived',
+        updatedAt: Date.now(),
+      });
+    } catch (err) {
+      console.error('Error updating trip arrival:', err);
+    }
+  }
+  setTripStatus('arrived');
+};
+
 // Initialize Capacitor Google Map, draw route polylines, sync live GPS to Firestore, and trim route
   const createMap = async () => {
     if (!mapRef.current) return;
