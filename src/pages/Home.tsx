@@ -1,25 +1,18 @@
 /// <reference path="../custom-elements.d.ts" />
-import React, {useState} from 'react';
-import { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GoogleMap } from '@capacitor/google-maps';
 import { Geolocation } from '@capacitor/geolocation';
-import polyline from '@mapbox/polyline'; // Change string to corrdinates.
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon, IonInput } from '@ionic/react';
-import { useHistory } from 'react-router-dom'; 
-import { notificationsOutline } from 'ionicons/icons';
-import { collection, doc } from 'firebase/firestore';
-import { db } from '../services/firebaseConfig';
-import { setDoc } from 'firebase/firestore';
-import { updateDoc } from 'firebase/firestore';
-//import '../theme/global.css';
-//import '../theme/colours.css';
+import polyline from '@mapbox/polyline';
+import {IonContent,IonHeader,IonPage,IonToolbar, IonTitle,IonButtons,IonButton,IonIcon,IonInput,IonCheckbox,IonList,IonItem,IonLabel,IonAvatar,useIonViewWillEnter} from '@ionic/react';
+import { useHistory } from 'react-router-dom';
+import { notificationsOutline, searchOutline, personOutline } from 'ionicons/icons';
 import './Home.css';
 import './components.css';
 
 // FIREBASE INTEGRATION
 import { auth, db } from '../services/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, DocumentReference, DocumentData } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, DocumentReference, DocumentData } from 'firebase/firestore';
 
 // Capacitor Contacts plugin import
 import { Contacts } from '@capacitor-community/contacts';
@@ -30,7 +23,6 @@ interface ContactItem {
   contactId: string;
   displayName: string;
   phoneNumber?: string;
-  fcmToken?: string; // FCM Token for Push Notifications
   selected: boolean;
 }
 
@@ -38,47 +30,120 @@ const getDistanceMeters = (
   a: { lat: number; lng: number },
   b: { lat: number; lng: number }
 ) => {
-  const R = 6371000; // Earth's radius in meters
-  const dLat = (b.lat - a.lat) * Math.PI / 180;
-  const dLng = (b.lng - a.lng) * Math.PI / 180;
-  const lat1 = a.lat * Math.PI / 180;
-  const lat2 = b.lat * Math.PI / 180;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  const R = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 };
 
 const HomePage = () => {
-const history = useHistory(); //History use to navigate to notifications page. 
-const [destinationInput, setDestinationInput] = useState('');
-const [tripStatus, setTripStatus] = useState<TripStatus>('notstarted'); // Default to 'notstarted' 
-const [eta, setEta] = useState('');
-const [tripLink, setTripLink] = useState('');
+  const history = useHistory();
+  const [destinationInput, setDestinationInput] = useState('');
+  const [tripStatus, setTripStatus] = useState<TripStatus>('notstarted');
+  const [eta, setEta] = useState('');
 
-// Dropdown 
-const [predictions, setPredictions] = useState<{ description: string; place_id: string }[]>([]);
-const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // User Profile State
+  const [userName, setUserName] = useState<string>('User');
+  const [profileImage, setProfileImage] = useState<string | null>(null);
 
-//Start of Map
-const mapRef = useRef<HTMLElement>(null); // HTML Element.Empty box. Filled later with google maps.
-const googleMapRef = useRef<GoogleMap | null>(null); // Googlemap object. Used later for directions & camera moving. Used with newmaps.
-const watchIdRef = useRef<string | null>(null); // String. NEW — holds the watch ID so we can cancel it on cleanup
-const destCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
-const tripDocRef = useRef<ReturnType<typeof doc> | null>(null); // Holds firestore trip
-// Polyline Refs
-const polylineIdsRef = useRef<string[]>([]);
-const routePathRef = useRef<{ lat: number; lng: number }[]>([]);
-const routeIndexRef = useRef(0);
+  // Dropdown
+  const [predictions, setPredictions] = useState<
+    { description: string; place_id: string }[]
+  >([]);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-// When status traveling. If the map is not created, create it. 
- useEffect(() => {
-    if (tripStatus === 'traveling' && mapRef.current) { 
-      const newTripRef = doc(collection(db, 'trips'));
-    tripDocRef.current = newTripRef; // Store trip for later
-      // If status traveling and does mapRef have something in box yetm
-      createMap();
+  // Track if destination is selected to show contacts step
+  const [isDestinationSelected, setIsDestinationSelected] = useState(false);
+  
+  // Contacts state management & Search Filter
+  const [contacts, setContacts] = useState<ContactItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [shareableLink, setShareableLink] = useState('');
+
+  // Map Refs
+  const mapRef = useRef<HTMLElement>(null); // HTML Element.Empty box. Filled later with google maps.
+  const googleMapRef = useRef<GoogleMap | null>(null); // Googlemap object. Used later for directions & camera moving. Used with newmaps.
+  const watchIdRef = useRef<string | null>(null); // String. NEW — holds the watch ID so we can cancel it on cleanup
+  const destCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // Polyline Refs
+  const polylineIdsRef = useRef<string[]>([]);
+  const routePathRef = useRef<{ lat: number; lng: number }[]>([]);
+  const routeIndexRef = useRef(0);
+  const tripDocRef = useRef<DocumentReference<DocumentData> | null>(null);
+
+  // Synchronized Profile Fetching Strategy -- basically that recoginzes the log
+  const fetchUserProfile = () => {
+    // 1. Prioritize LocalStorage uploaded avatar and saved user object
+    const savedAvatar = localStorage.getItem('avatarUrl');
+    if (savedAvatar) {
+      setProfileImage(savedAvatar);
     }
 
-        // Stops watching the position when the component unmounts or when tripStatus changes.
+    const savedUserSession = localStorage.getItem('safelink_user');
+    if (savedUserSession) {
+      try {
+        const parsed = JSON.parse(savedUserSession);
+        if (parsed.name || parsed.fullName) setUserName(parsed.name || parsed.fullName);
+        if (parsed.avatarUrl) setProfileImage(parsed.avatarUrl);
+      } catch (e) {
+        console.error('Error parsing local user:', e);
+      }
+    }
+
+    // Sync with Firestore DB (default photo with app avatar)
+    onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          const userSnap = await getDoc(userDocRef);
+
+          if (userSnap.exists()) {
+            const data = userSnap.data();
+            if (data.name) setUserName(data.name);
+            // Always prefer app avatarUrl over Google Auth photoURL
+            if (data.avatarUrl) {
+              setProfileImage(data.avatarUrl);
+              localStorage.setItem('avatarUrl', data.avatarUrl);
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching profile on Home:', err);
+        }
+      }
+    });
+  };
+// Refresh user profile whenever the Ionic view is entered/navigated
+  useIonViewWillEnter(() => {
+    fetchUserProfile();
+  });
+// Global listeners to re-fetch profile on custom updates 
+  useEffect(() => {
+    fetchUserProfile();
+
+    const handleProfileUpdate = () => {
+      fetchUserProfile();
+    };
+
+    window.addEventListener('safelink_user_updated', handleProfileUpdate);
+    window.addEventListener('storage', handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener('safelink_user_updated', handleProfileUpdate);
+      window.removeEventListener('storage', handleProfileUpdate);
+    };
+  }, []);
+// Manage Google Map + tracking 
+  useEffect(() => {
+    if (tripStatus === 'traveling' && mapRef.current) {
+      createMap();
+    }
+// Stop active Geolocation watcher when leaving traveling status
     return () => {
       if (watchIdRef.current) {
         Geolocation.clearWatch({ id: watchIdRef.current });
@@ -87,40 +152,52 @@ const routeIndexRef = useRef(0);
     };
   }, [tripStatus]);
 
-    // NEW — fetch predicted destinations from Google Places Autocomplete
-const fetchPredictions = async (input: string) => {
-  if (!input.trim()) {
-    setPredictions([]);
-    return;
-  }
-  const apiKey = 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI';
-  const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}`;
+  useEffect(() => {
+    if (isDestinationSelected && contacts.length === 0) {
+      loadDeviceContacts();
+    }
+  }, [isDestinationSelected]);
+// Load device contacts automatically as soon as a destination is selected
+// Request contact permissions and fetch device contacts 
+  const loadDeviceContacts = async () => {
+    try {
+      const checkStatus = await Contacts.checkPermissions();
+      let granted = checkStatus.contacts === 'granted';
 
-  const res = await fetch(url);
-  const data = await res.json();
-  setPredictions(data.status === 'OK' ? data.predictions : []);
-};
+      if (!granted) {
+        const reqStatus = await Contacts.requestPermissions();
+        granted = reqStatus.contacts === 'granted';
+      }
 
-// NEW — debounce so we don't fetch on every keystroke
-const handleDestinationChange = (value: string) => {
-  setDestinationInput(value);
-  if (debounceRef.current) clearTimeout(debounceRef.current);
-  debounceRef.current = setTimeout(() => fetchPredictions(value), 300);
-};
+      if (granted) {
+        const res = await Contacts.getContacts({
+          projection: { name: true, phones: true },
+        });
 
-const createMap = async () => {
-  if (!mapRef.current) return; //from null to current 
-
-
-  const useFallbackContacts = () => {
-    setContacts([
-      { contactId: '1', displayName: 'Alex Johnson', phoneNumber: '+1 555-0199', selected: false },
-      { contactId: '2', displayName: 'Emily Davis', phoneNumber: '+1 555-0142', selected: false },
-      { contactId: '3', displayName: 'Michael Brown', phoneNumber: '+1 555-0188', selected: false },
-      { contactId: '4', displayName: 'Sarah Wilson', phoneNumber: '+1 555-0123', selected: false },
-    ]);
+        if (res && res.contacts && res.contacts.length > 0) {
+          const formattedContacts: ContactItem[] = res.contacts.map((c) => ({
+            contactId: c.contactId,
+            displayName: c.name?.display || c.name?.given || 'Unknown Contact',
+            phoneNumber: c.phones?.[0]?.number || '',
+            selected: false,
+          }));
+          setContacts(formattedContacts);
+        } else {
+          useFallbackContacts();
+        }
+      } else {
+        useFallbackContacts();
+      }
+    } catch (err) {
+      console.warn('Error loading contacts or running in browser:', err);
+      useFallbackContacts();
+    }
   };
 
+  const useFallbackContacts = () => {
+   
+  };
+// Fetch address auto-complete suggestions from Google Places
   const fetchPredictions = async (input: string) => {
     if (!input.trim()) {
       setPredictions([]);
@@ -135,14 +212,14 @@ const createMap = async () => {
     const data = await res.json();
     setPredictions(data.status === 'OK' ? data.predictions : []);
   };
-
+// Handle destination input changes 
   const handleDestinationChange = (value: string) => {
     setDestinationInput(value);
     setIsDestinationSelected(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => fetchPredictions(value), 300);
   };
-
+// Toggle selection status for emergency contacts list checkboxes
   const toggleContactSelection = (contactId: string) => {
     setContacts((prev) =>
       prev.map((item) =>
@@ -152,39 +229,14 @@ const createMap = async () => {
       )
     );
   };
-
-  // --- BEGIN TRIP (FIRESTORE TRIGGER FOR PUSH NOTIFICATION) ---
+// Generate tracking link, open Web Share sheet if available, and transition to traveling state
   const handleBeginTrip = async () => {
     const selectedContacts = contacts.filter((c) => c.selected);
     const tripId = `trip_${Date.now()}`;
     
-    // Extract recipient FCM tokens for Push Notifications
-    const recipientTokens: string[] = selectedContacts
-      .map((c) => c.fcmToken)
-      .filter((token): token is string => Boolean(token));
-
-    // Reference to Firestore Document
-    const tripRef = doc(db, 'trips', tripId);
-    tripDocRef.current = tripRef;
-
-    try {
-      // Writing to 'trips' fires Cloud Function 'onTripCreated'
-      await setDoc(tripRef, {
-        tripId,
-        userName: userName || 'SafeLink User',
-        destination: destinationInput,
-        status: 'traveling',
-        recipientTokens,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-    } catch (err) {
-      console.error('Error saving trip to Firestore:', err);
-    }
-
     const generatedLink = `https://yourdomain.com/track?tripId=${tripId}`;
     setShareableLink(generatedLink);
-
+// Trigger native Web Share API dialog if supported
     if (navigator.share && selectedContacts.length > 0) {
       try {
         await navigator.share({
@@ -199,97 +251,70 @@ const createMap = async () => {
 
     setTripStatus('traveling');
   };
-
-  // --- ARRIVED / END TRIP (FIRESTORE TRIGGER FOR ARRIVAL NOTIFICATION) ---
-  const handleEndTrip = async () => {
-    if (tripDocRef.current) {
-      try {
-        // Updating status to 'arrived' fires Cloud Function 'onTripStatusUpdated'
-        await updateDoc(tripDocRef.current, {
-          status: 'arrived',
-          updatedAt: Date.now(),
-        });
-      } catch (err) {
-        console.error('Error updating trip arrival:', err);
-      }
-    }
-    setTripStatus('arrived');
-  };
-
+// Initialize Capacitor Google Map, draw route polylines, sync live GPS to Firestore, and trim route
   const createMap = async () => {
     if (!mapRef.current) return;
-
-      // Required for Capacitor Geolocator plugin. Asks permission to use location. Pop up. requestPermission. 
+// Check location permissions
     const permission = await Geolocation.requestPermissions();
-    if (permission.location !== 'granted' && permission.coarseLocation !== 'granted') {
+    if (
+      permission.location !== 'granted' &&
+      permission.coarseLocation !== 'granted'
+    ) {
       console.error('Location permission was not granted');
       return;
     }
-
-    // getCurrentPosition API from geolocation plugin. Only retireves inital position.
+// Get user current GPS coordinates
     const currentPosition = await Geolocation.getCurrentPosition({
       enableHighAccuracy: true,
       timeout: 10000,
-      maximumAge: 1000 
+      maximumAge: 1000,
     });
-
-    // Storing trip in firestore.
-    if (tripDocRef.current) {
-    await setDoc(tripDocRef.current, {
-      lat: currentPosition.coords.latitude,
-      lng: currentPosition.coords.longitude,
-      destination: destinationInput,
-      status: 'traveling',
-      updatedAt: Date.now(),
-    });
-  }
-
-   if (tripDocRef.current) {
-    setTripLink(`https://safelink-2acc5.web.app/watch/${tripDocRef.current.id}`); // URL link for safelink-watcher
-  }
-
-  const newMap = await GoogleMap.create({
-    id: 'trip-map',
-    element: mapRef.current,
-    apiKey: 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI',
-    config: {
+// Create Google Map 
+    const newMap = await GoogleMap.create({
+      id: 'trip-map',
+      element: mapRef.current,
+      apiKey: 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI',
+      config: {
         center: {
-          lat: currentPosition.coords.latitude,  
-          lng: currentPosition.coords.longitude, 
+          lat: currentPosition.coords.latitude,
+          lng: currentPosition.coords.longitude,
         },
-      zoom: 18,
-    },
-  });
+        zoom: 18,
+      },
+    });
 
-      googleMapRef.current = newMap; // NEW
+    googleMapRef.current = newMap;
 
-      await getDirections(
-        { lat: currentPosition.coords.latitude, lng: currentPosition.coords.longitude },
-        destinationInput
-      );
+    await getDirections(
+      {
+        lat: currentPosition.coords.latitude,
+        lng: currentPosition.coords.longitude,
+      },
+      destinationInput
+    );
 
-          // Blue dot
     await newMap.enableCurrentLocation(true);
-
-
-// NEW Tracking throughout; Not just showing position once.
+// Start live GPS tracking watcher
     const watchId = await Geolocation.watchPosition(
-      { 
+      {
         enableHighAccuracy: true,
-       maximumAge: 1000 
+        maximumAge: 1000,
       },
       (position, err) => {
-        if (err) { console.error('watchPosition error', err); return; }
+        if (err) {
+          console.error('watchPosition error', err);
+          return;
+        }
         if (!position || !googleMapRef.current) return;
 
         // Update Firestore with new position
         if (tripDocRef.current) {
-          updateDoc(tripDocRef.current, {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            updatedAt: Date.now(),
-          });
-        }
+  updateDoc(tripDocRef.current, {
+    lat: position.coords.latitude,
+    lng: position.coords.longitude,
+    updatedAt: Date.now(),
+  });
+}
 
         googleMapRef.current.setCamera({
           coordinate: {
@@ -300,11 +325,17 @@ const createMap = async () => {
           animate: true,
         });
 
-        const currentPos = { lat: position.coords.latitude, lng: position.coords.longitude };
+        const currentPos = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
         const path = routePathRef.current;
         let idx = routeIndexRef.current;
 
-        while (idx < path.length - 1 && getDistanceMeters(currentPos, path[idx]) < 10) {
+        while (
+          idx < path.length - 1 &&
+          getDistanceMeters(currentPos, path[idx]) < 10
+        ) {
           idx++;
         }
 
@@ -313,10 +344,16 @@ const createMap = async () => {
 
           (async () => {
             if (polylineIdsRef.current.length) {
-              await googleMapRef.current!.removePolylines(polylineIdsRef.current);
+              await googleMapRef.current!.removePolylines(
+                polylineIdsRef.current
+              );
             }
             const newIds = await googleMapRef.current!.addPolylines([
-              { path: path.slice(idx), strokeColor: '#2563eb', strokeWeight: 4 },
+              {
+                path: path.slice(idx),
+                strokeColor: '#2563eb',
+                strokeWeight: 4,
+              },
             ]);
             polylineIdsRef.current = newIds ?? [];
           })();
@@ -328,13 +365,10 @@ const createMap = async () => {
             destCoordsRef.current
           );
           if (dist < 50) {
-            handleEndTrip();
+            setTripStatus('arrived');
           }
         }
       }
-    }
-  }
-}
     );
     watchIdRef.current = watchId;
   };
@@ -596,7 +630,7 @@ const createMap = async () => {
 
             <IonButton
               className="large-button"
-              onClick={handleEndTrip}
+              onClick={() => setTripStatus('arrived')}
               style={{ margin: '16px' }}
             >
               End Trip
@@ -625,7 +659,6 @@ const createMap = async () => {
                 setEta('');
                 destCoordsRef.current = null;
                 googleMapRef.current = null;
-                tripDocRef.current = null;
               }}
             >
               Back to Start
@@ -636,207 +669,5 @@ const createMap = async () => {
     </IonPage>
   );
 };
-
-
- // Getting directions code.
-const getDirections = async (
-  origin: { lat: number; lng: number },
-  destination: string
-) => {
-  const apiKey = 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI'; 
-  const originStr = `${origin.lat},${origin.lng}`;
-  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${encodeURIComponent(destination)}&key=${apiKey}`;
-
-  const response = await fetch(url);
-  const data = await response.json(); //Retrieving the scrambled
-
-  if (!data.routes || data.routes.length === 0) {
-    console.error('No route found', data);
-    return;
-  } // Error message for invalud entry.
-
-  const route = data.routes[0];
-  const points = route.overview_polyline.points;
-  const etaText = route.legs[0].duration.text;
-  const endLocation = route.legs[0].end_location; // { lat, lng }
-
-  destCoordsRef.current = { lat: endLocation.lat, lng: endLocation.lng }; // Storing destination. Same with endLocation.
-
-  // Storing destinations long/lat for Safelink-Watcher
-if (tripDocRef.current) {
-  updateDoc(tripDocRef.current, {
-    destLat: endLocation.lat,
-    destLng: endLocation.lng,
-  });
-}
-
-  const decodedPoints = polyline.decode(points);
-  const path = decodedPoints.map(([lat, lng]) => ({ lat, lng }));
-
-    // store path
-    routePathRef.current = path;
-  routeIndexRef.current = 0;
-
-  const ids = await googleMapRef.current?.addPolylines([
-    {
-      path,
-      strokeColor: '#2563eb',
-      strokeWeight: 4,
-    },
-  ]);
-  if (ids) polylineIdsRef.current = ids;
-
-  setEta(etaText);
-};
-//End of Map
-
-
-
-  return (   
-
-    //Start navigation
-  <IonPage>
-    <IonHeader>
-      <IonToolbar>
-        <IonTitle class="ion-text-center">Home</IonTitle>
-         <IonButtons slot="end">
-            <IonButton onClick={() => history.push('/notifications')}>
-              <IonIcon icon={notificationsOutline} />
-            </IonButton>
-          </IonButtons>
-      </IonToolbar>
-    </IonHeader>
-    <IonContent className="page-background">
-      {/* End of navigation bar. Top and bottom. */}
-      
-
-{/* CHANGE OF STATE */}
-{tripStatus === 'notstarted' && (
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100%',
-    }}
-  >
-      <IonButton className="start-button" onClick={() => setTripStatus('tripinformation')}>
-      Start Trip test
-    </IonButton>
-  </div>
-)}
-
-{/* CHANGE OF STATE */}
-{tripStatus === 'tripinformation' && (
-  <div style={{ marginTop: 24, marginRight: 16, marginLeft: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-    <div className="box-container">
-      <div className="box-container-text">
-  <span className="mini-text" style={{ color: 'var(--yellow-700)' }}>
-  Mandatory
-</span>
-  <span className="field-label h5-medium" style={{ color: 'var(--yellow-700)' }}>
-    When I arrive
-  </span>
-  </div>
-  <div className="field-box">
-  <IonInput 
-    placeholder="Enter destination"
-    value={destinationInput}
-    onIonInput={(e) => handleDestinationChange(e.detail.value!)}
-  />
-
-
-        {/* NEW — predicted destination dropdown */}
-    {predictions.length > 0 && (
-      <div className="prediction-list">
-        {predictions.map((p) => (
-          <div
-            key={p.place_id}
-            className="prediction-item"
-            onClick={() => {
-              setDestinationInput(p.description);
-              setPredictions([]);
-            }}
-          >
-            {p.description}
-          </div>
-        ))}
-      </div>
-    )}
-    </div>
-    </div>
-    <IonButton className="large-button" onClick={() => setTripStatus('traveling')}>
-      Begin
-    </IonButton>
-  </div>
-)}
-
-
-{/* CHANGE OF STATE */}
-{tripStatus === 'traveling' && (
-  <div>
-    <div
-      style={{
-        margin: '16px',
-        padding: '0px',
-        backgroundColor: 'var(--white)',
-        border: '2px solid var(--yellow-700)',
-        borderRadius: '12px',
-        boxSizing: 'border-box',
-      }}
-    >
-      <capacitor-google-map
-        ref={mapRef}
-        style={{
-          display: 'block',
-          width: '100%',
-          height: '400px',
-        }}
-      ></capacitor-google-map>
-    </div>
-
-<IonButton 
-  className="large-button" 
-  onClick={() => {
-    setTripStatus('arrived');
-    if (tripDocRef.current) {
-      updateDoc(tripDocRef.current, { status: 'arrived' });
-    }
-  }}
-  style={{ margin: '16px' }}
->
-  End Trip
-</IonButton>
-  </div>
-)}
-
-
-{/* CHANGE OF STATE */}
-{tripStatus === 'arrived' && (
-  <div
-    style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100%',
-    }}
-  >
-    <p>You've arrived!</p>
-    <IonButton onClick={() => {
-      setTripStatus('notstarted');
-      setDestinationInput('');
-      setEta('');
-      destCoordsRef.current = null;
-      googleMapRef.current = null;
-    }}>
-      Back to Start
-    </IonButton>
-  </div>
-)}
-    </IonContent>
-  </IonPage>
-);
-}
 
 export default HomePage;
