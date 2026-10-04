@@ -6,6 +6,11 @@ import { notificationsOutline } from 'ionicons/icons';
  const MorePage = () => {
   //History use to navigate to notifications page. 
   const history = useHistory();
+
+
+
+
+
   return (
     <IonPage>
       <IonHeader>
@@ -28,10 +33,14 @@ import { notificationsOutline } from 'ionicons/icons';
           }}
         >
           More content
+
         </div>
       </IonContent>
     </IonPage>
+    
   );
 };
+
+
 
 export default MorePage;

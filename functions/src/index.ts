@@ -1,8 +1,12 @@
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
+import { defineSecret } from 'firebase-functions/params';
+import twilio from 'twilio';
 
+
+
+// Start of Laura code. I believe this is related to notifications and not Twillo. Do not edit/ delete it. 
 admin.initializeApp();
-
 // EVENT 1: Notify contacts when a trip STARTS
 export const onTripCreated = onDocumentCreated('trips/{tripId}', async (event) => {
   const snapshot = event.data;
@@ -76,3 +80,50 @@ export const onTripStatusUpdated = onDocumentUpdated('trips/{tripId}', async (ev
     }
   }
 });
+// End of Laura code.
+
+// Start of Arianna code on Twillo.
+const twilioAuthToken = defineSecret('TWILIO_AUTH_TOKEN'); // Stored in Firebase
+const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID; // Stored in functions/env 
+const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER; // Stored in functions/env 
+
+
+export const sendTripStartSms = onDocumentCreated( // Cloud Firestore function triggers
+  { document: 'trips/{tripId}', secrets: [twilioAuthToken] },
+  async (event) => {
+    const trip = event.data?.data();
+    const client = twilio(twilioAccountSid, twilioAuthToken.value());
+    try {
+      // 'Send SMS and MMS messages' Doc from Twillo
+      const message = await client.messages.create({
+        body: `SafeLink: I have just started a trip to ${trip?.destination || 'my destination'}. Follow my journey: https://safelinkwatcher.com/watch/${event.params.tripId}`,
+        from: twilioPhoneNumber,
+        to: trip?.recipientPhone,
+      });
+      console.log(message.body);
+    } catch (error) {
+      console.error('Error sending SMS:', error);
+    }
+  }
+);
+
+export const sendTripArrivedSms = onDocumentUpdated(  // Cloud Firestore function triggers
+  { document: 'trips/{tripId}', secrets: [twilioAuthToken] },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (before?.status === 'arrived' || after?.status !== 'arrived') return;
+    const client = twilio(twilioAccountSid, twilioAuthToken.value());
+    try {
+      // 'Send SMS and MMS messages' Doc from Twillo
+      const message = await client.messages.create({
+        body: 'SafeLink: I have successfully arrived at my destination!',
+        from: twilioPhoneNumber,
+        to: after?.recipientPhone,
+      });
+      console.log(message.body);
+    } catch (error) {
+      console.error('Error sending SMS:', error);
+    }
+  }
+);

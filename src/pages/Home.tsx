@@ -434,7 +434,7 @@ const handleEndTrip = async () => {
     const etaText = route.legs[0].duration.text;
     const endLocation = route.legs[0].end_location; // lat, lng  
 
-    destCoordsRef.current = { lat: endLocation.lat, lng: endLocation.lng }; // Storing destination. Same with endLocation. 
+  destCoordsRef.current = { lat: endLocation.lat, lng: endLocation.lng }; // Storing destination. Same with endLocation.
 
   // Storing destinations long/lat for Safelink-Watcher 
     if (tripDocRef.current) { 
@@ -497,125 +497,74 @@ const handleEndTrip = async () => {
     <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center',height: '100%',}}>     
     <IonButton className="start-button" onClick={() => setTripStatus('tripinformation')}>Start Trip test</IonButton> </div>)}
 
-{/* CHANGE OF STATE */} 
-        {tripStatus === 'tripinformation' && (
-          <div style={{ marginTop: 24, marginRight: 16,marginLeft: 16,display: 'flex',flexDirection: 'column',alignItems: 'center', }} >
-            <div className="box-container">
-              <div className="box-container-text">
-                <span className="mini-text" style={{ color: 'var(--yellow-700)' }}>
-                  Mandatory
-                </span>
-                <span
-                  className="field-label h5-medium" style={{ color: 'var(--yellow-700)' }}>
-                  My Destination
-                </span>
-              </div>
-              <div className="field-box">
-                <IonInput
-                  placeholder="Enter destination"
-                  value={destinationInput}
-                  onIonInput={(e) => handleDestinationChange(e.detail.value!)}
-                />
- 
-{/* Predicted destination dropdown */} 
-                {predictions.length > 0 && (
-                  <div className="prediction-list">
-                    {predictions.map((p) => (
-                      <div
-                        key={p.place_id}
-                        className="prediction-item"
-                        onClick={() => {
-                          setDestinationInput(p.description);
-                          setIsDestinationSelected(true);
-                          setPredictions([]);
-                        }}
-                      >
-                        {p.description}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+{/* CHANGE OF STATE */}
+{tripStatus === 'tripinformation' && (
+  <div style={{ marginTop: 24, marginRight: 16, marginLeft: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className="box-container">
+      <div className="box-container-text">
+  <span className="mini-text" style={{ color: 'var(--yellow-700)' }}>
+  Mandatory
+</span>
+  <span className="field-label h5-medium" style={{ color: 'var(--yellow-700)' }}>
+    When I arrive
+  </span>
+  </div>
+  <div className="field-box">
+  <IonInput 
+    placeholder="Enter destination"
+    value={destinationInput}
+    onIonInput={(e) => handleDestinationChange(e.detail.value!)}
+  />
 
-{/* CHANGE OF STATE */} 
-            {isDestinationSelected && (
-              <div
-                className="box-container"
-                style={{ marginTop: 20, width: '100%' }}
-              >
-                <div className="box-container-text">
-                  <span className="field-label h5-medium">
-                    Share Route With
-                  </span>
-                </div>
 
-                <div className="field-box" style={{ marginTop: 8, marginBottom: 8 }}>
-                  <IonInput
-                    placeholder="Search contacts..."
-                    value={searchQuery}
-                    onIonInput={(e) => setSearchQuery(e.detail.value!)}
-                  >
-                    <IonIcon icon={searchOutline} slot="start" style={{ marginLeft: 8 }} />
-                  </IonInput>
-                </div>
-
-                <IonList style={{ maxHeight: '200px', overflowY: 'auto', borderRadius: '8px' }}>
-                  {filteredContacts.length === 0 ? (
-                    <IonItem>
-                      <IonLabel style={{ textAlign: 'center', color: '#666' }}>
-                        No contacts found
-                      </IonLabel>
-                    </IonItem>
-                  ) : (
-                    filteredContacts.map((c) => (
-                      <IonItem key={c.contactId}>
-                        <IonLabel>
-                          <h2>{c.displayName}</h2>
-                          <p>{c.phoneNumber}</p>
-                        </IonLabel>
-                        <IonCheckbox
-                          slot="end"
-                          checked={c.selected}
-                          onIonChange={() => toggleContactSelection(c.contactId)}/>
-                      </IonItem>
-                    ))
-                  )}
-                </IonList>
-              </div>
-            )}
-
-            <IonButton
-              className="large-button"
-              disabled={!isDestinationSelected}
-              onClick={handleBeginTrip}
-              style={{ marginTop: 20 }}>
-              Begin
-            </IonButton>
+        {/* NEW — predicted destination dropdown */}
+    {predictions.length > 0 && (
+      <div className="prediction-list">
+        {predictions.map((p) => (
+          <div
+            key={p.place_id}
+            className="prediction-item"
+            onClick={() => {
+              setDestinationInput(p.description);
+              setPredictions([]);
+            }}
+          >
+            {p.description}
           </div>
-        )}
-{/* CHANGE OF STATE */} 
-        {tripStatus === 'traveling' && (
-          <div>
-            <div
-              style={{
-                margin: '16px',
-                padding: '0px',
-                backgroundColor: 'var(--white)',
-                border: '2px solid var(--yellow-700)',
-                borderRadius: '12px',
-                boxSizing: 'border-box',
-              }}
-            >
-              <capacitor-google-map
-                ref={mapRef}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  height: '400px',
-                }}
-              ></capacitor-google-map>
-            </div>
+        ))}
+      </div>
+    )}
+    </div>
+    </div>
+    <IonButton className="large-button" onClick={() => setTripStatus('traveling')}>
+      Begin
+    </IonButton>
+  </div>
+)}
+
+
+{/* CHANGE OF STATE */}
+{tripStatus === 'traveling' && (
+  <div>
+    <div
+      style={{
+        margin: '16px',
+        padding: '0px',
+        backgroundColor: 'var(--white)',
+        border: '2px solid var(--yellow-700)',
+        borderRadius: '12px',
+        boxSizing: 'border-box',
+      }}
+    >
+      <capacitor-google-map
+        ref={mapRef}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: '400px',
+        }}
+      ></capacitor-google-map>
+    </div>
 
             {shareableLink && (
               <div style={{ padding: '0 16px', textAlign: 'center' }}>
