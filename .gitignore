@@ -30,3 +30,7 @@ yarn-error.log*
 
 # Optional eslint cache
 .eslintcache
+
+functions/node_modules/
+functions/lib/
+functions/.secret.local
