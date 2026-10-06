@@ -265,60 +265,7 @@ if (tripDocRef.current) {
 setTripLink(`https://safelink-2acc5.web.app/watch/${tripDocRef.current.id}`); // URL link for safelink-watcher 
 } 
 
-// Toggle selection status for emergency contacts list checkboxes
-  const toggleContactSelection = (contactId: string) => {
-    setContacts((prev) =>
-      prev.map((item) =>
-        item.contactId === contactId
-          ? { ...item, selected: !item.selected }
-          : item
-      )
-    );
-  };
-  // BEGIN TRIP (FIRESTORE TRIGGER FOR PUSH NOTIFICATION):Generate tracking link, open Web Share sheet if available, and transition to traveling state
-  const handleBeginTrip = async () => {
-    const selectedContacts = contacts.filter((c) => c.selected);
-    const tripId = `trip_${Date.now()}`;
-    if (tripDocRef.current === null) {
-    const newTripRef = doc(collection(db, 'trips'));
-    tripDocRef.current = newTripRef;
-    
-    const generatedLink = `https://yourdomain.com/track?tripId=${tripId}`;
-    setShareableLink(generatedLink);
-// Trigger native Web Share API dialog if supported
-    if (navigator.share && selectedContacts.length > 0) {
-      try {
-        await navigator.share({
-          title: 'Follow My Route',
-          text: `I am sharing my live route to ${destinationInput}. Follow along here:`,
-          url: generatedLink,
-        });
-      } catch (e) {
-        console.log('Share prompt dismissed or unsupported');
-      }
-    }
-
-    setTripStatus('traveling');
-  };
-// --- ARRIVED / END TRIP ---
-const handleEndTrip = async () => {
-  if (watchIdRef.current) {
-    Geolocation.clearWatch({ id: watchIdRef.current });
-    watchIdRef.current = null;
-  }
-  if (tripDocRef.current) {
-    try {
-      await updateDoc(tripDocRef.current, {
-        status: 'arrived',
-        updatedAt: Date.now(),
-      });
-    } catch (err) {
-      console.error('Error updating trip arrival:', err);
-    }
-  }
-  setTripStatus('arrived');
-};
-
+// Start of move
 // Create Google Map 
     const newMap = await GoogleMap.create({
       id: 'trip-map',
@@ -334,7 +281,7 @@ const handleEndTrip = async () => {
     });
 
     
-    googleMapRef.current = newMap; // NEW
+    googleMapRef.current = newMap; // Store map instance to be used later
 
     await getDirections(
       {lat: currentPosition.coords.latitude,lng: currentPosition.coords.longitude,},
@@ -410,7 +357,65 @@ const handleEndTrip = async () => {
           }
           );
            watchIdRef.current = watchId;
-           };
+           }; //end of move
+
+// Toggle selection status for emergency contacts list checkboxes
+  const toggleContactSelection = (contactId: string) => {
+    setContacts((prev) =>
+      prev.map((item) =>
+        item.contactId === contactId
+          ? { ...item, selected: !item.selected }
+          : item
+      )
+    );
+  };
+  // BEGIN TRIP (FIRESTORE TRIGGER FOR PUSH NOTIFICATION):Generate tracking link, open Web Share sheet if available, and transition to traveling state
+  const handleBeginTrip = async () => {
+    const selectedContacts = contacts.filter((c) => c.selected);
+    const tripId = `trip_${Date.now()}`;
+    if (tripDocRef.current === null) {
+    const newTripRef = doc(collection(db, 'trips'));
+    tripDocRef.current = newTripRef;
+    
+    const generatedLink = `https://yourdomain.com/track?tripId=${tripId}`;
+    setShareableLink(generatedLink);
+// Trigger native Web Share API dialog if supported
+    if (navigator.share && selectedContacts.length > 0) {
+      try {
+        await navigator.share({
+          title: 'Follow My Route',
+          text: `I am sharing my live route to ${destinationInput}. Follow along here:`,
+          url: generatedLink,
+        });
+      } catch (e) {
+        console.log('Share prompt dismissed or unsupported');
+      }
+    }
+
+    setTripStatus('traveling');
+  }
+  };
+
+// --- ARRIVED / END TRIP ---
+const handleEndTrip = async () => {
+  if (watchIdRef.current) {
+    Geolocation.clearWatch({ id: watchIdRef.current });
+    watchIdRef.current = null;
+  }
+  if (tripDocRef.current) {
+    try {
+      await updateDoc(tripDocRef.current, {
+        status: 'arrived',
+        updatedAt: Date.now(),
+      });
+    } catch (err) {
+      console.error('Error updating trip arrival:', err);
+    }
+  }
+  setTripStatus('arrived');
+};
+
+
 
 // Getting directions code. 
   const getDirections = async (
@@ -525,8 +530,9 @@ const handleEndTrip = async () => {
             key={p.place_id}
             className="prediction-item"
             onClick={() => {
-              setDestinationInput(p.description);
-              setPredictions([]);
+setDestinationInput(p.description);
+setIsDestinationSelected(true);
+setPredictions([]);
             }}
           >
             {p.description}
@@ -536,9 +542,54 @@ const handleEndTrip = async () => {
     )}
     </div>
     </div>
-    <IonButton className="large-button" onClick={() => setTripStatus('traveling')}>
-      Begin
-    </IonButton>
+        {isDestinationSelected && (
+      <div className="box-container" style={{ marginTop: 20, width: '100%' }}>
+        <div className="box-container-text">
+          <span className="field-label h5-medium">Share Route With</span>
+        </div>
+
+        <div className="field-box" style={{ marginTop: 8, marginBottom: 8 }}>
+          <IonInput
+            placeholder="Search contacts..."
+            value={searchQuery}
+            onIonInput={(e) => setSearchQuery(e.detail.value!)}
+          >
+            <IonIcon icon={searchOutline} slot="start" style={{ marginLeft: 8 }} />
+          </IonInput>
+        </div>
+
+        <IonList style={{ maxHeight: '200px', overflowY: 'auto', borderRadius: '8px' }}>
+          {filteredContacts.length === 0 ? (
+            <IonItem>
+              <IonLabel style={{ textAlign: 'center', color: '#666' }}>
+                No contacts found
+              </IonLabel>
+            </IonItem>
+          ) : (
+            filteredContacts.map((c) => (
+              <IonItem key={c.contactId}>
+                <IonLabel>
+                  <h2>{c.displayName}</h2>
+                  <p>{c.phoneNumber}</p>
+                </IonLabel>
+                <IonCheckbox
+                  slot="end"
+                  checked={c.selected}
+                  onIonChange={() => toggleContactSelection(c.contactId)}
+                />
+              </IonItem>
+            ))
+          )}
+        </IonList>
+      </div>
+    )}
+<IonButton
+  className="large-button"
+  disabled={!isDestinationSelected}
+  onClick={handleBeginTrip}
+  style={{ marginTop: 20 }}>
+  Begin
+</IonButton>
   </div>
 )}
 
@@ -618,6 +669,5 @@ const handleEndTrip = async () => {
       </IonContent>
     </IonPage>
   );
-};
 };
 export default HomePage;
