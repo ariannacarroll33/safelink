@@ -26,6 +26,7 @@ const YourLinkPage = () => {
   const watchIdRef = useRef<string | number | null>(null);
   const intervalRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   
   // 2. USER STATES
   const [userId, setUserId] = useState<string>('');
@@ -351,9 +352,20 @@ console.log("Alarm Started!");
 
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonTitle className="ion-text-center">Your Link</IonTitle>
+      <IonHeader className="ion-no-border">
+        <IonToolbar className="header-toolbar">
+          <IonButtons slot="start">
+            <IonAvatar className="header-avatar">
+              {profileImage ? (
+                <img src={profileImage} alt={userName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div className="empty-avatar-circle header-empty-circle">
+                  <IonIcon icon={personOutline} />
+                </div>
+              )}
+            </IonAvatar>
+          </IonButtons>
+          <IonTitle className="ion-text-center header-title">SafeLink</IonTitle>
           <IonButtons slot="end">
             <IonButton onClick={() => history.push('/notifications')}>
               <IonIcon icon={notificationsOutline} />
@@ -362,26 +374,242 @@ console.log("Alarm Started!");
         </IonToolbar>
       </IonHeader>
 
-      <IonContent>
+      <IonContent className="yourlink-content">
+        <div className="location-pill-container">
+          <div className={`location-pill ${isLive ? 'pill-active' : 'pill-paused'}`}>
+            <IonIcon icon={navigateOutline} className="location-icon" />
+            <div className="location-info">
+              <span className="location-label">
+                {isLive ? 'Current location' : 'Last known location'}
+              </span>
+              <span className="location-address">
+                {isLive ? userLocation : lastKnownLocation || 'Sharing Paused'}
+              </span>
+            </div>
 
-        
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-            gap: '20px'
-          }}
-        >
-          <IonButton
-            className={isAlarmActive ? "sos-button-on" : "sos-button-off"}
-            onClick={toggleAlarm}
-          >
-            {isAlarmActive ? "STOP ALARM" : "TRIGGER SOS"}
-          </IonButton>
+            <button
+              type="button"
+              className={`live-badge-btn ${isLive ? 'badge-live' : 'badge-paused'}`}
+              onClick={toggleLiveStatus}
+            >
+              <span className={`live-dot ${isLive ? 'dot-green' : 'dot-red'}`}></span>
+              {isLive ? 'Live' : 'Off'}
+            </button>
+          </div>
         </div>
+
+        <div className="profile-hero-section">
+          <div
+            className="avatar-wrapper"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {profileImage ? (
+              <img src={profileImage} alt={userName} className="main-profile-img" />
+            ) : (
+              <div className="empty-avatar-circle main-empty-circle">
+                <IonIcon icon={personOutline} />
+              </div>
+            )}
+            <div className="camera-overlay">
+              <IonIcon icon={cameraOutline} />
+            </div>
+          </div>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageUpload}
+            accept="image/*"
+            style={{ display: 'none' }}
+          />
+
+          <div className="hero-text-container">
+            <span className="hero-subtitle">Your Personal Link</span>
+            <div className="editable-name-row" onClick={() => setShowEditAlert(true)}>
+              <h1 className="hero-title">{userName}</h1>
+              <IonIcon icon={createOutline} className="edit-icon" />
+            </div>
+          </div>
+        </div>
+
+        {/* PHONE NUMBER CARD */}
+        <div className="info-card" style={{ margin: '0 16px 16px', padding: '16px', backgroundColor: '#FFFFFF', borderRadius: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <IonIcon icon={callOutline} style={{ fontSize: '20px', color: '#633A0E' }} />
+              <div>
+                <span style={{ fontSize: '12px', color: '#888', display: 'block' }}>Phone Number</span>
+                <strong style={{ fontSize: '15px', color: '#333' }}>{userPhone || 'Not provided'}</strong>
+              </div>
+            </div>
+            <IonButton fill="clear" onClick={() => setShowPhoneAlert(true)}>
+              <IonIcon icon={createOutline} style={{ color: '#633A0E' }} />
+            </IonButton>
+          </div>
+        </div>
+
+        {/* EMERGENCY CONTACTS CARD */}
+        <div className="info-card" style={{ margin: '0 16px 16px', padding: '16px', backgroundColor: '#FFFFFF', borderRadius: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <IonIcon icon={peopleOutline} style={{ fontSize: '20px', color: '#633A0E' }} />
+              <strong style={{ fontSize: '16px', color: '#633A0E' }}>Emergency Contacts</strong>
+            </div>
+            <IonButton fill="clear" onClick={() => setShowAddContactAlert(true)}>
+              <IonIcon icon={addCircleOutline} style={{ fontSize: '22px', color: '#633A0E' }} />
+            </IonButton>
+          </div>
+
+          <IonList lines="none" style={{ background: 'transparent' }}>
+            {emergencyContacts.length === 0 ? (
+              <p style={{ fontSize: '13px', color: '#888', textAlign: 'center', margin: '8px 0' }}>
+                No emergency contacts added yet.
+              </p>
+            ) : (
+              emergencyContacts.map((contact) => (
+                <IonItem key={contact.contactId} style={{ '--background': '#F9F9F9', borderRadius: '10px', marginBottom: '8px' }}>
+                  <IonLabel>
+                    <h3 style={{ fontWeight: '700', color: '#333' }}>{contact.displayName}</h3>
+                    <p style={{ color: '#666', fontSize: '12px' }}>{contact.relation} • {contact.phoneNumber}</p>
+                  </IonLabel>
+                  <IonButton slot="end" fill="clear" href={`tel:${contact.phoneNumber}`}>
+                    <IonIcon icon={callOutline} style={{ color: '#2e7d32' }} />
+                  </IonButton>
+                </IonItem>
+              ))
+            )}
+          </IonList>
+        </div>
+
+        {/* SHARING CARD */}
+        <div className="share-card">
+          <p className="card-subtitle">Share your contact and live location with anyone</p>
+          <h2 className="card-title">Your Personal QR</h2>
+
+          <div className="qr-container">
+            <QRCodeSVG
+              value={personalLink}
+              size={180}
+              bgColor="#ffffff"
+              fgColor="#000000"
+              level="H"
+              includeMargin={true}
+            />
+          </div>
+
+          <div className="link-box" onClick={handleCopyLink}>
+            <IonIcon icon={linkOutline} className="link-icon" />
+            <span className="link-text">{personalLink}</span>
+          </div>
+
+          <IonButton
+            className="send-text-btn"
+            expand="block"
+            onClick={handleSendViaText}
+          >
+            Send via. Text
+          </IonButton>
+
+          <p className="card-footer-text">
+            Your link never changes. Just like the app, others can only see your location whilst you're live.
+          </p>
+
+          <div style={{ marginTop: '24px' }}>
+            <IonButton
+              className={isAlarmActive ? 'sos-button-on' : 'sos-button-off'}
+              onClick={toggleAlarm}
+            >
+              {isAlarmActive ? 'STOP ALARM' : 'TRIGGER SOS'}
+            </IonButton>
+          </div>
+        </div>
+
+        {/* EDIT NAME MODAL */}
+        <IonAlert
+          isOpen={showEditAlert}
+          onDidDismiss={() => setShowEditAlert(false)}
+          header="Change Display Name"
+          inputs={[
+            {
+              name: 'newName',
+              type: 'text',
+              placeholder: 'Enter your name',
+              value: userName,
+            },
+          ]}
+          buttons={[
+            { text: 'Cancel', role: 'cancel' },
+            {
+              text: 'Save',
+              handler: (data) => handleSaveName(data.newName),
+            },
+          ]}
+        />
+
+        {/* EDIT PHONE MODAL */}
+        <IonAlert
+          isOpen={showPhoneAlert}
+          onDidDismiss={() => setShowPhoneAlert(false)}
+          header="Update Phone Number"
+          inputs={[
+            {
+              name: 'newPhone',
+              type: 'tel',
+              placeholder: '+1 555-0000',
+              value: userPhone,
+            },
+          ]}
+          buttons={[
+            { text: 'Cancel', role: 'cancel' },
+            {
+              text: 'Save',
+              handler: (data) => handleSavePhone(data.newPhone),
+            },
+          ]}
+        />
+
+        {/* ADD EMERGENCY CONTACT MODAL */}
+        <IonAlert
+          isOpen={showAddContactAlert}
+          onDidDismiss={() => setShowAddContactAlert(false)}
+          header="Add Emergency Contact"
+          inputs={[
+            {
+              name: 'contactName',
+              type: 'text',
+              placeholder: 'Name (e.g. John Doe)',
+            },
+            {
+              name: 'contactPhone',
+              type: 'tel',
+              placeholder: 'Phone (+1 555-0000)',
+            },
+            {
+              name: 'contactRelation',
+              type: 'text',
+              placeholder: 'Relationship (e.g. Spouse, Friend)',
+            },
+          ]}
+          buttons={[
+            { text: 'Cancel', role: 'cancel' },
+            {
+              text: 'Add',
+              handler: (data) =>
+                handleAddEmergencyContact(
+                  data.contactName,
+                  data.contactPhone,
+                  data.contactRelation
+                ),
+            },
+          ]}
+        />
+
+        <IonToast
+          isOpen={showToast}
+          onDidDismiss={() => setShowToast(false)}
+          message={toastMessage}
+          duration={2000}
+        />
       </IonContent>
     </IonPage>
   );
