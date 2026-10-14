@@ -115,7 +115,8 @@ const CreateUser: React.FC = () => {
       name: name.trim(),
       email: email.trim(),
       phone: fullPhone,
-      username: username.trim().toLowerCase().replace(/^@/, '')
+      username: username.trim().toLowerCase().replace(/^@/, ''),
+      emergencyContacts: []
     };
 
     localStorage.setItem('safelink_user', JSON.stringify(newUserData));
@@ -190,6 +191,7 @@ const CreateUser: React.FC = () => {
         username: cleanUsername,
         email: email.trim(),
         phone: fullPhoneNumber,
+        emergencyContacts: [],
         createdAt: new Date().toISOString()
       });
 
