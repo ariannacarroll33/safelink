@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon, IonAvatar, IonToast, IonAlert, IonList, IonItem, IonLabel, useIonViewWillEnter } from '@ionic/react';
+import { IonContent, IonHeader, IonSearchbar, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon, IonAvatar, IonToast, IonAlert, IonList, IonItem, IonLabel, useIonViewWillEnter } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
-import { notificationsOutline, navigateOutline, linkOutline, cameraOutline, personOutline, createOutline, callOutline, peopleOutline, addCircleOutline, trashOutline, star, starOutline } from 'ionicons/icons';
+import { notificationsOutline, closeCircleOutline, navigateOutline, linkOutline, cameraOutline, personOutline, createOutline, callOutline, peopleOutline, addCircleOutline, trashOutline, star, starOutline } from 'ionicons/icons';
 import './YourLink.css';
 
 export interface EmergencyContact {
@@ -38,6 +38,7 @@ const YourLinkPage = () => {
   const [showEditAlert, setShowEditAlert] = useState<boolean>(false);
   const [showPhoneAlert, setShowPhoneAlert] = useState<boolean>(false);
   const [showAddContactAlert, setShowAddContactAlert] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // FETCH USER DATA FROM SIGN UP (createUser.tsx & Firebase)
   const loadUserData = async () => {
@@ -53,7 +54,7 @@ const YourLinkPage = () => {
         if (parsed.phone) setUserPhone(parsed.phone);
         if (parsed.avatarUrl) setProfileImage(parsed.avatarUrl);
         // Contacts selected during createUser.tsx
-        if (parsed.emergencyContacts) setEmergencyContacts(parsed.emergencyContacts);
+        if (Array.isArray(parsed.emergencyContacts)) setEmergencyContacts(parsed.emergencyContacts);
       } catch (e) {
         console.error('Error parsing local storage user data:', e);
       }
@@ -69,7 +70,9 @@ const YourLinkPage = () => {
             if (data.name) setUserName(data.name);
             if (data.phone) setUserPhone(data.phone);
             if (data.avatarUrl) setProfileImage(data.avatarUrl);
-            if (data.emergencyContacts) setEmergencyContacts(data.emergencyContacts);
+            if (Array.isArray(data.emergencyContacts) && data.emergencyContacts.length > 0) {
+            setEmergencyContacts(data.emergencyContacts);
+            }
           }
         } catch (e) {
           console.error('Error fetching Firestore user data:', e);
@@ -247,6 +250,16 @@ const YourLinkPage = () => {
     setShowToast(true);
   };
 
+  const favoriteContacts = emergencyContacts.filter(c => c.favorite);
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const searchResults = normalizedQuery
+  ? emergencyContacts.filter(c =>
+      c.displayName.toLowerCase().includes(normalizedQuery) ||
+      (c.relation || '').toLowerCase().includes(normalizedQuery) ||
+      c.phoneNumber.replace(/\s+/g, '').includes(normalizedQuery.replace(/\s+/g, ''))
+    )
+  : [];
+
   return (
     <IonPage>
       <IonHeader className="ion-no-border">
@@ -333,7 +346,6 @@ const YourLinkPage = () => {
               <div>
                 <strong style={{ fontSize: '16px', color: '#633A0E', display: 'block' }}>Emergency Contacts</strong>
                 <span style={{ fontSize: '11px', color: '#7d7267' }}>
-                  Favorites: {emergencyContacts.filter(c => c.favorite).length}/10
                 </span>
               </div>
             </div>
@@ -372,6 +384,74 @@ const YourLinkPage = () => {
             )}
           </IonList>
         </div>
+{/* FAVORITES CARD */}
+<div className="info-card" style={{ margin: '0 16px 24px', padding: '16px' }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+    <IonIcon icon={star} style={{ fontSize: '20px', color: '#ffc107' }} />
+    <div>
+      <strong style={{ fontSize: '16px', color: '#633A0E', display: 'block' }}>Favorites</strong>
+      <span style={{ fontSize: '11px', color: '#7d7267' }}>{favoriteContacts.length}/10</span>
+    </div>
+  </div>
+
+  <IonSearchbar
+    value={searchQuery}
+    onIonInput={(e) => setSearchQuery(e.detail.value || '')}
+    onIonClear={() => setSearchQuery('')}
+    placeholder="Search your contacts"
+    debounce={150}
+    style={{ '--background': '#f8f6f2', '--border-radius': '12px', padding: 0, marginBottom: '8px' }}
+  />
+
+  <IonList lines="none" style={{ background: 'transparent' }}>
+    {normalizedQuery ? (
+      searchResults.length === 0 ? (
+        <p style={{ fontSize: '13px', color: '#7d7267', textAlign: 'center', margin: '8px 0' }}>
+          No contacts match "{searchQuery}".
+        </p>
+      ) : (
+        searchResults.map(contact => (
+          <IonItem key={contact.contactId} style={{ '--background': '#f8f6f2', borderRadius: '12px', marginBottom: '8px' }}>
+            <IonLabel>
+              <h3 style={{ fontWeight: '700', color: '#2c2117' }}>{contact.displayName}</h3>
+              <p style={{ color: '#7d7267', fontSize: '12px' }}>
+                {contact.relation ? `${contact.relation} • ` : ''}{contact.phoneNumber}
+              </p>
+            </IonLabel>
+            <IonButton slot="end" fill="clear" onClick={() => handleToggleFavorite(contact.contactId)}>
+              <IonIcon
+                icon={contact.favorite ? star : starOutline}
+                style={{ fontSize: '22px', color: contact.favorite ? '#ffc107' : '#ccc' }}
+              />
+            </IonButton>
+          </IonItem>
+        ))
+      )
+    ) : favoriteContacts.length === 0 ? (
+      <p style={{ fontSize: '13px', color: '#7d7267', textAlign: 'center', margin: '8px 0' }}>
+        No favorites yet. Search a contact above and tap the star.
+      </p>
+    ) : (
+      favoriteContacts.map(contact => (
+        <IonItem key={contact.contactId} style={{ '--background': '#f8f6f2', borderRadius: '12px', marginBottom: '8px' }}>
+          <IonLabel>
+            <h3 style={{ fontWeight: '700', color: '#2c2117' }}>{contact.displayName}</h3>
+            <p style={{ color: '#7d7267', fontSize: '12px' }}>
+              {contact.relation ? `${contact.relation} • ` : ''}{contact.phoneNumber}
+            </p>
+          </IonLabel>
+          <IonButton slot="end" fill="clear" href={`tel:${contact.phoneNumber}`}>
+            <IonIcon icon={callOutline} style={{ color: '#2e7d32' }} />
+          </IonButton>
+          <IonButton slot="end" fill="clear" onClick={() => handleToggleFavorite(contact.contactId)}>
+            <IonIcon icon={closeCircleOutline} style={{ color: '#999' }} />
+          </IonButton>
+        </IonItem>
+      ))
+    )}
+  </IonList>
+</div>
+
 
         <IonAlert
           isOpen={showEditAlert}
