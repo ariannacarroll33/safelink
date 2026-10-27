@@ -1,12 +1,7 @@
 import React from 'react';
 import { IonContent, IonPage, IonHeader, IonToolbar } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
-import { 
-  contentBackgroundStyle, headerToolbarStyle, headerContainerStyle, 
-  headerWelcomeTextStyle, mainContainerStyle, contentStyle, 
-  iconContainerStyle, titleStyle, descriptionStyle, 
-  dotsContainerStyle, dotStyle, bottomContainerStyle, actionButtonStyle 
-} from './onboarding1';
+import { contentBackgroundStyle, headerToolbarStyle, headerContainerStyle, headerWelcomeTextStyle, mainContainerStyle, contentStyle, iconContainerStyle, titleStyle, descriptionStyle, dotsContainerStyle, dotStyle, bottomContainerStyle, actionButtonStyle } from './onboarding1';
 
 const Onboarding2: React.FC = () => {
   const history = useHistory();
@@ -38,7 +33,6 @@ const Onboarding2: React.FC = () => {
             </p>
           </div>
 
-          {/* Indicador de Páginas (Punto 2 Activo) */}
           <div style={dotsContainerStyle}>
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
             <span style={{ ...dotStyle, backgroundColor: '#E6A937' }} />

@@ -1,12 +1,7 @@
 import React from 'react';
 import { IonContent, IonPage, IonHeader, IonToolbar } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
-import { 
-  contentBackgroundStyle, headerToolbarStyle, headerContainerStyle, 
-  headerWelcomeTextStyle, mainContainerStyle, contentStyle, 
-  iconContainerStyle, titleStyle, descriptionStyle, 
-  dotsContainerStyle, dotStyle, bottomContainerStyle, actionButtonStyle 
-} from './onboarding1';
+import { contentBackgroundStyle, headerToolbarStyle, headerContainerStyle, headerWelcomeTextStyle, mainContainerStyle, contentStyle, iconContainerStyle, titleStyle, descriptionStyle, dotsContainerStyle, dotStyle, bottomContainerStyle, actionButtonStyle } from './onboarding1';
 
 const Onboarding3: React.FC = () => {
   const history = useHistory();

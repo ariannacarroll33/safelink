@@ -1,12 +1,7 @@
 import React from 'react';
 import { IonContent, IonPage, IonHeader, IonToolbar } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
-import { 
-  contentBackgroundStyle, headerToolbarStyle, headerContainerStyle, 
-  headerWelcomeTextStyle, mainContainerStyle, contentStyle, 
-  iconContainerStyle, titleStyle, descriptionStyle, 
-  dotsContainerStyle, dotStyle, bottomContainerStyle, actionButtonStyle 
-} from './onboarding1';
+import { contentBackgroundStyle, headerToolbarStyle, headerContainerStyle, headerWelcomeTextStyle, mainContainerStyle, contentStyle, iconContainerStyle, titleStyle, descriptionStyle, dotsContainerStyle, dotStyle, bottomContainerStyle, actionButtonStyle } from './onboarding1';
 
 const Onboarding4: React.FC = () => {
   const history = useHistory();
@@ -35,7 +30,7 @@ const Onboarding4: React.FC = () => {
 
             <h2 style={titleStyle}>SOS Button</h2>
             <p style={descriptionStyle}>
-              In an emergency, every millisecond counts. We've placed an SOS button, connected to your emergency contact for the moment we need help the most.
+              In an emergency, every millisecond counts. We've placed an SOS button, connected to your emergency contact for the moment we need help the most. Feel safe going back home with SafeLink!
             </p>
           </div>
 
