@@ -5,6 +5,13 @@
   --border-radius: 50%;
 }
 
+.back-button {
+  --background: var(--grey-400);
+  width: 200px;
+  height: 200px;
+  --border-radius: 50%;
+}
+
 .start-button::part(native) {
   border: 7px solid var(--white);
 }
@@ -29,6 +36,28 @@
 
 .prediction-item:active {
   background: var(--grey-600);
+}
+
+.transport-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.transport-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--grey-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-bottom: 6px;
 }
 
 .box-container {

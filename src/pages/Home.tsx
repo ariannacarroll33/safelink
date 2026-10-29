@@ -383,6 +383,7 @@ const HomePage = () => {
     );
   };
 
+  // Contact bellow is Lauras code. Inially, she tried to do SMS Text, so possibly some old code is still here. However, Arianna not changing it, incase cause issues.
   // Travelling state set up.
   // (FIRESTORE TRIGGER FOR PUSH NOTIFICATION):Generate tracking link, open Web Share sheet if available, and transition to traveling state
   const handleBeginTrip = async () => {
@@ -396,24 +397,12 @@ const HomePage = () => {
 
       const generatedLink = `https://yourdomain.com/track?tripId=${tripId}`;
       setShareableLink(generatedLink);
-      // Trigger native Web Share API dialog if supported
-      if (navigator.share && recipientPhoneRef.current) {
-        try {
-          await navigator.share({
-            title: 'Follow My Route',
-            text: `I am sharing my live route to ${destinationInput}. Follow along here:`,
-            url: generatedLink,
-          });
-        } catch (e) {
-          console.log('Share prompt dismissed or unsupported');
-        }
-      }
-
+      // Arianna deleted popup for 'Trigger native Web Share API dialog if supported'. Located in old files> Laura deleted code.
       setTripStatus('traveling');
     }
   };
 
-  // Arrieved state setup
+  // Arrived state setup
   const handleEndTrip = async () => {
     if (watchIdRef.current) {
       Geolocation.clearWatch({ id: watchIdRef.current });
@@ -433,7 +422,7 @@ const HomePage = () => {
   };
 
 
-
+  // Arianna code again. 
   // Getting directions code. 
   const getDirections = async (
     origin: { lat: number; lng: number },
@@ -442,7 +431,7 @@ const HomePage = () => {
     const apiKey = 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI'; // Need to hide for real app.
     const originStr = `${origin.lat},${origin.lng}`;
     const modeParam = transportMode ? `&mode=${transportMode}` : ''; // Only add mode if one was chosen
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${encodeURIComponent(destination)}&key=${apiKey}`;
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${encodeURIComponent(destination)}${modeParam}&key=${apiKey}`;
 
     let response = await fetch(url);
     let data = await response.json(); //Retrieving the scrambled 
@@ -542,7 +531,7 @@ const HomePage = () => {
                   Mandatory
                 </span>
                 <span className="field-label h5-medium" style={{ color: 'var(--yellow-700)' }}>
-                  When I arrive
+                  Enter destination
                 </span>
               </div>
               <div className="field-box">
@@ -666,7 +655,6 @@ const HomePage = () => {
 
             </div>
 
-
             <IonButton
               className="large-button"
               disabled={!isDestinationSelected || !contacts.some((c) => c.selected)} // Destination greyed out until valid selection
@@ -674,6 +662,13 @@ const HomePage = () => {
               style={{ marginTop: 20 }}>
               Begin
             </IonButton>
+
+<IonButton
+  className="large-button"
+  onClick={() => setTripStatus('notstarted')}
+  style={{ marginTop: 20, '--background': 'var(--grey-400)' }}>
+  Back
+</IonButton>
           </div>
 
         )}
