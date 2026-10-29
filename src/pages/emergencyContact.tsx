@@ -28,6 +28,10 @@ import { useHistory } from 'react-router-dom';
 // Capacitor Native Contacts Plugin
 import { Contacts } from '@capacitor-community/contacts';
 
+// Firebase imports for fetch to yourLink
+import { auth, db } from '../services/firebaseConfig';
+import { doc, setDoc } from 'firebase/firestore';
+
 interface Contact {
   id: string;
   name: string;
@@ -145,16 +149,43 @@ const EmergencyContact: React.FC = () => {
     c => c.name.trim() !== '' && c.countryCode.trim() !== '' && c.phone.trim() !== ''
   );
 
-  const handleNext = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleNext = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (!isFormValid) {
-      setToastMessage('Please fill in all required fields for your contacts.');
-      setShowToast(true);
-      return;
+  if (!isFormValid) {
+    setToastMessage('Please fill in all required fields for your contacts.');
+    setShowToast(true);
+    return;
+  }
+
+  const mapped = contacts.map(c => ({
+    contactId: `contact_${c.id}`,
+    displayName: c.name.trim(),
+    phoneNumber: `${c.countryCode.trim()}${c.phone.replace(/\s+/g, '')}`,
+    relation: '',
+    favorite: false,
+  }));
+
+  try {
+    // 1. localStorage 
+    const prev = JSON.parse(localStorage.getItem('safelink_user') || '{}');
+    localStorage.setItem('safelink_user', JSON.stringify({ ...prev, emergencyContacts: mapped }));
+
+    // 2. Firestore 
+    if (auth.currentUser) {
+      await setDoc(doc(db, 'users', auth.currentUser.uid), { emergencyContacts: mapped }, { merge: true });
+    } else {
+      console.warn('Without auth.currentUser: contacts saved locally');
     }
-    history.push('Home');
-  };
+  } catch (err) {
+    console.error('Error could not save contacts:', err);
+    setToastMessage('Could not save your contacts.');
+    setShowToast(true);
+    return;
+  }
+
+  history.push('/home'); // route next 
+};
 
   const dynamicButtonStyle = {
     '--background': isFormValid ? '#FFEBB7' : '#FFFFFF',

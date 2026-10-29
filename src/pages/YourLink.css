@@ -1,20 +1,206 @@
-/* Outer button sizing & circular shape */
-.sos-button-off {
-  --background: var(--red-dark, #8b0000); /* Fallback color included */
-  width: 200px;
-  height: 200px;
-  --border-radius: 50%;
+
+
+:root {
+  --safelink-bg-yellow: #ffe5a3;
+  --safelink-primary-brown: #633a0e;
+  --safelink-card-bg: #ffffff;
+  --safelink-text-dark: #2c2117;
+  --safelink-text-muted: #7d7267;
+  --safelink-star: #ffc107;
+  --safelink-border: rgba(99, 58, 14, 0.12);
 }
 
-.sos-button-on {
-  --background: var(--grey-600, #555555); /* Fallback color included */
-  width: 200px;
-  height: 200px;
-  --border-radius: 50%;
+/* back */
+ion-content.yourlink-content {
+  --background: var(--safelink-bg-yellow) !important;
+  --ion-background-color: var(--safelink-bg-yellow) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, sans-serif;
 }
 
-/* White ring applied exclusively to the inner button element */
-.sos-button-off::part(native),
-.sos-button-on::part(native) {
-  border: 7px solid var(--white, #ffffff);
+/* Header */
+.header-toolbar {
+  --background: var(--safelink-bg-yellow) !important;
+  --border-color: transparent !important;
+  padding: 4px 8px;
+}
+
+.header-title {
+  color: var(--safelink-primary-brown);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.header-avatar {
+  width: 38px;
+  height: 38px;
+  border: 2px solid var(--safelink-primary-brown);
+}
+
+.empty-avatar-circle {
+  width: 100%;
+  height: 100%;
+  background: #f7d088;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--safelink-primary-brown);
+  font-size: 20px;
+}
+
+/* Location Pill */
+.location-pill-container {
+  padding: 12px 16px 4px 16px;
+}
+
+.location-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  padding: 12px 16px;
+  border-radius: 18px;
+  box-shadow: 0 4px 14px rgba(99, 58, 14, 0.08);
+  border: 1px solid var(--safelink-border);
+}
+
+.location-icon {
+  font-size: 22px;
+  color: var(--safelink-primary-brown);
+  flex-shrink: 0;
+}
+
+.location-info {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.location-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--safelink-text-muted);
+  text-transform: uppercase;
+}
+
+.location-address {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--safelink-text-dark);
+  margin-top: 2px;
+}
+
+.live-badge-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+}
+
+.badge-live {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.badge-paused {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dot-green {
+  background-color: #2e7d32;
+}
+
+.dot-red {
+  background-color: #d32f2f;
+}
+
+/* Profile Hero */
+.profile-hero-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px 16px 16px;
+  text-align: center;
+}
+
+.avatar-wrapper {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(99, 58, 14, 0.15);
+}
+
+.main-profile-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #ffffff;
+}
+
+.main-empty-circle {
+  border-radius: 50%;
+  font-size: 44px;
+  border: 3px solid #ffffff;
+}
+
+.camera-overlay {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: var(--safelink-primary-brown);
+  color: #ffffff;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  border: 2px solid #ffffff;
+}
+
+.hero-text-container {
+  margin-top: 10px;
+}
+
+.editable-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.hero-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--safelink-primary-brown);
+  margin: 0;
+}
+
+.edit-icon {
+  font-size: 18px;
+  color: var(--safelink-primary-brown);
+}
+
+/* Cards Design */
+.info-card {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(99, 58, 14, 0.08);
+  border: 1px solid var(--safelink-border);
 }
