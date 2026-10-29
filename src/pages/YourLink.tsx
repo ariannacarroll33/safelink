@@ -4,8 +4,6 @@ import { useHistory } from 'react-router-dom';
 import {notificationsOutline,navigateOutline,linkOutline,cameraOutline,personOutline,createOutline,callOutline,peopleOutline,addCircleOutline,} from 'ionicons/icons';
 import { QRCodeSVG } from 'qrcode.react';
 import './YourLink.css';
-import alertNoise from '../assets/mixkit-facility-alarm-sound-999.wav';
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 
 export interface EmergencyContact {
@@ -24,8 +22,6 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 const YourLinkPage = () => {
   const history = useHistory();
   const watchIdRef = useRef<string | number | null>(null);
-  const intervalRef = useRef<number | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   
   // 2. USER STATES
@@ -42,7 +38,6 @@ const YourLinkPage = () => {
   const [lastKnownLocation, setLastKnownLocation] = useState<string>('');
 
   // 4. UI STATES
-  const [isAlarmActive, setIsAlarmActive] = useState<boolean>(false);
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
   const [showEditAlert, setShowEditAlert] = useState<boolean>(false);
@@ -162,44 +157,6 @@ const YourLinkPage = () => {
     }
   };
 
-  // SOS ALARM
-function startAlarm() {
-const alarmSound = new Audio(alertNoise);
-alarmSound.loop = true;
-alarmSound.play();
-audioRef.current = alarmSound;
-
-// Start repeating vibration
-intervalRef.current = window.setInterval(() => {
-Haptics.impact({ style: ImpactStyle.Heavy });
-}, 500);
-}
-
-
-// useRef hook. Controls pause / play of audio.
-const stopAlarmSound = () => {
-if (audioRef.current) {
-audioRef.current.pause();
-}
-if (intervalRef.current) {
-window.clearInterval(intervalRef.current);
-intervalRef.current = null;
-}
-};
-
-
-// Button logic. Kept console.log for testing.
-const toggleAlarm = () => {
-if (isAlarmActive) {
-stopAlarmSound();
-setIsAlarmActive(false);
-console.log("Alarm Stopped!");
-} else {
-startAlarm();
-setIsAlarmActive(true);
-console.log("Alarm Started!");
-}
-};
 
 // Your link 
   const personalLink = `https://safelink-2acc5.web.app/add-contact?userId=${userId || 'account'}`;
@@ -513,15 +470,6 @@ console.log("Alarm Started!");
           <p className="card-footer-text">
             Your link never changes. Just like the app, others can only see your location whilst you're live.
           </p>
-
-          <div style={{ marginTop: '24px' }}>
-            <IonButton
-              className={isAlarmActive ? 'sos-button-on' : 'sos-button-off'}
-              onClick={toggleAlarm}
-            >
-              {isAlarmActive ? 'STOP ALARM' : 'TRIGGER SOS'}
-            </IonButton>
-          </div>
         </div>
 
         {/* EDIT NAME MODAL */}

@@ -1,0 +1,39 @@
+/* Outer button sizing & circular shape */
+.sos-button-off {
+  --background: var(--red-dark, #8b0000); /* Fallback color included */
+  width: 200px;
+  height: 200px;
+  --border-radius: 50%;
+}
+
+.sos-button-on {
+  --background: var(--grey-600, #555555); /* Fallback color included */
+  width: 200px;
+  height: 200px;
+  --border-radius: 50%;
+}
+
+
+
+.sos-button-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+  text-align: center;
+}
+
+
+/* Typography */
+
+.sos-title {
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.sos-body {
+  color: var(--grey-600);
+  max-width: 320px;
+  margin: 0 0 32px;
+  text-align: center;
+}
+
