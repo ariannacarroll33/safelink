@@ -82,6 +82,7 @@ export const onTripStatusUpdated = onDocumentUpdated('trips/{tripId}', async (ev
 });
 // End of Laura code.
 
+
 // Start of Arianna code on Twillo.
 const twilioAuthToken = defineSecret('TWILIO_AUTH_TOKEN'); // Stored in Firebase
 const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID; // Stored in functions/env 
@@ -96,7 +97,9 @@ export const sendTripStartSms = onDocumentCreated( // Cloud Firestore function t
     try {
       // 'Send SMS and MMS messages' Doc from Twillo
       const message = await client.messages.create({
-        body: `SafeLink: I have just started a trip to ${trip?.destination || 'my destination'}. Follow my journey: https://safelinkwatcher.com/watch/${event.params.tripId}`,
+        body: trip?.status === 'sos' // For if user selects SOS button. 
+        ? `SafeLink SOS: I need help. Follow my live location: https://safelinkwatcher.com/watch/${event.params.tripId}` // SOS message
+        : `SafeLink: I have just started a trip to ${trip?.destination || 'my destination'}. Follow my journey: https://safelinkwatcher.com/watch/${event.params.tripId}`, // Start trip message.
         from: twilioPhoneNumber,
         to: trip?.recipientPhone,
       });
@@ -107,6 +110,7 @@ export const sendTripStartSms = onDocumentCreated( // Cloud Firestore function t
   }
 );
 
+// Documents updated when user has arrieved. Triggers second trip text,
 export const sendTripArrivedSms = onDocumentUpdated(  // Cloud Firestore function triggers
   { document: 'trips/{tripId}', secrets: [twilioAuthToken] },
   async (event) => {
@@ -118,6 +122,27 @@ export const sendTripArrivedSms = onDocumentUpdated(  // Cloud Firestore functio
       // 'Send SMS and MMS messages' Doc from Twillo
       const message = await client.messages.create({
         body: 'SafeLink: I have successfully arrived at my destination!',
+        from: twilioPhoneNumber,
+        to: after?.recipientPhone,
+      });
+      console.log(message.body);
+    } catch (error) {
+      console.error('Error sending SMS:', error);
+    }
+  }
+);
+
+// Document updated when users has clicked SOS button for seond time. Triggers second SOS text. (see in maps.tsx)
+export const sendSosEndedSms = onDocumentUpdated(
+  { document: 'trips/{tripId}', secrets: [twilioAuthToken] },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (before?.status === 'sosEnded' || after?.status !== 'sosEnded') return;
+    const client = twilio(twilioAccountSid, twilioAuthToken.value());
+    try {
+      const message = await client.messages.create({
+        body: 'SafeLink: I am safe now. The SOS alert has ended.',
         from: twilioPhoneNumber,
         to: after?.recipientPhone,
       });
