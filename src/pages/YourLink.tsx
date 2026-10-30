@@ -2,6 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { IonContent, IonHeader, IonSearchbar, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon, IonAvatar, IonToast, IonAlert, IonList, IonItem, IonLabel, useIonViewWillEnter } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { notificationsOutline, closeCircleOutline, navigateOutline, linkOutline, cameraOutline, personOutline, createOutline, callOutline, peopleOutline, addCircleOutline, trashOutline, star, starOutline } from 'ionicons/icons';
+import { IonModal, IonCheckbox, IonSpinner, IonFooter } from '@ionic/react';
+import { saveEmergencyContacts } from '../services/contactsService';
+import { cloudDownloadOutline } from 'ionicons/icons'; 
+import { Capacitor } from '@capacitor/core';
+import { Contacts } from '@capacitor-community/contacts';
 import './YourLink.css';
 
 export interface EmergencyContact {
@@ -39,6 +44,11 @@ const YourLinkPage = () => {
   const [showPhoneAlert, setShowPhoneAlert] = useState<boolean>(false);
   const [showAddContactAlert, setShowAddContactAlert] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showPickerModal, setShowPickerModal] = useState<boolean>(false);
+  const [deviceContacts, setDeviceContacts] = useState<DeviceContact[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [pickerQuery, setPickerQuery] = useState<string>('');
+  const [loadingContacts, setLoadingContacts] = useState<boolean>(false);
 
   // FETCH USER DATA FROM SIGN UP (createUser.tsx & Firebase)
   const loadUserData = async () => {
@@ -53,13 +63,31 @@ const YourLinkPage = () => {
         if (parsed.name) setUserName(parsed.name);
         if (parsed.phone) setUserPhone(parsed.phone);
         if (parsed.avatarUrl) setProfileImage(parsed.avatarUrl);
+        
         // Contacts selected during createUser.tsx
         if (Array.isArray(parsed.emergencyContacts)) setEmergencyContacts(parsed.emergencyContacts);
       } catch (e) {
         console.error('Error parsing local storage user data:', e);
       }
     }
+    if (Array.isArray(data.emergencyContacts)) {
+  setEmergencyContacts(data.emergencyContacts);
+}
+const saveContactsToStorageAndFirebase = async (updatedList: EmergencyContact[]) => {
+  setEmergencyContacts(updatedList);
+  const savedSession = localStorage.getItem('safelink_user');
+  const userData = savedSession ? JSON.parse(savedSession) : { id: userId };
+  userData.emergencyContacts = updatedList;
+  localStorage.setItem('safelink_user', JSON.stringify(userData));
 
+  try {
+    await saveEmergencyContacts(updatedList);
+  } catch (e) {
+    console.error('Error saving contacts to Firebase:', e);
+    setToastMessage('Guardado solo en el móvil (sin conexión)');
+    setShowToast(true);
+  }
+};
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserId(user.uid);
@@ -212,6 +240,98 @@ const YourLinkPage = () => {
     }
   };
 
+  interface DeviceContact {
+  id: string;
+  name: string;
+  phone: string;
+}
+
+const normalizePhone = (p: string) => p.replace(/[^\d+]/g, '');
+
+const openDeviceContactsPicker = async () => {
+  if (!Capacitor.isNativePlatform()) {
+    setToastMessage('Esta función solo está disponible en la app móvil');
+    setShowToast(true);
+    return;
+  }
+
+  try {
+    setLoadingContacts(true);
+
+    const perm = await Contacts.requestPermissions();
+    if (perm.contacts !== 'granted') {
+      setToastMessage('Permiso de contactos denegado');
+      setShowToast(true);
+      return;
+    }
+
+    const { contacts } = await Contacts.getContacts({
+      projection: { name: true, phones: true },
+    });
+
+    const list: DeviceContact[] = contacts
+      .filter(c => c.phones && c.phones.length > 0 && c.phones[0].number)
+      .map(c => ({
+        id: c.contactId,
+        name: c.name?.display || c.phones![0].number!,
+        phone: c.phones![0].number!,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    setDeviceContacts(list);
+    setSelectedIds(new Set());
+    setPickerQuery('');
+    setShowPickerModal(true);
+  } catch (e) {
+    console.error('Error reading device contacts:', e);
+    setToastMessage('No se pudieron leer los contactos');
+    setShowToast(true);
+  } finally {
+    setLoadingContacts(false);
+  }
+};
+
+const toggleSelectDeviceContact = (id: string) => {
+  setSelectedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+};
+
+const handleImportSelected = async () => {
+  // Evita duplicados comparando por teléfono
+  const existingPhones = new Set(emergencyContacts.map(c => normalizePhone(c.phoneNumber)));
+
+  const toAdd: EmergencyContact[] = deviceContacts
+    .filter(c => selectedIds.has(c.id) && !existingPhones.has(normalizePhone(c.phone)))
+    .map(c => ({
+      contactId: `contact_${Date.now()}_${c.id}`,
+      displayName: c.name,
+      phoneNumber: c.phone,
+      relation: '',
+      favorite: false,
+    }));
+
+  if (toAdd.length === 0) {
+    setToastMessage('Esos contactos ya estaban en tu lista');
+    setShowToast(true);
+    setShowPickerModal(false);
+    return;
+  }
+
+  await saveContactsToStorageAndFirebase([...emergencyContacts, ...toAdd]);
+  setShowPickerModal(false);
+  setToastMessage(`${toAdd.length} contacto(s) añadido(s)`);
+  setShowToast(true);
+};
+
+const filteredDeviceContacts = deviceContacts.filter(c => {
+  const q = pickerQuery.trim().toLowerCase();
+  if (!q) return true;
+  return c.name.toLowerCase().includes(q) || normalizePhone(c.phone).includes(normalizePhone(q));
+});
+
   const handleAddEmergencyContact = async (contactName: string, contactPhone: string, contactRelation?: string) => {
     if (contactName && contactPhone) {
       const newContact: EmergencyContact = {
@@ -353,18 +473,72 @@ const YourLinkPage = () => {
               <IonIcon icon={addCircleOutline} style={{ fontSize: '22px', color: '#633A0E' }} />
             </IonButton>
           </div>
-
+      <IonButton
+        expand="block"
+        fill="outline"
+        onClick={openDeviceContactsPicker}
+        disabled={loadingContacts}
+        style={{ '--color': '#633A0E', '--border-color': '#633A0E', marginTop: '8px' }}>
+        {loadingContacts ? <IonSpinner name="dots" /> : (<> <IonIcon slot="start" icon={cloudDownloadOutline} />Search through your contacts </>)} </IonButton>
           <IonList lines="none" style={{ background: 'transparent' }}>
             {emergencyContacts.length === 0 ? (
               <p style={{ fontSize: '13px', color: '#7d7267', textAlign: 'center', margin: '8px 0' }}>
                 No emergency contacts added yet.
-              </p>
-            ) : (
+              </p> ) : (
+                
               emergencyContacts.map((contact) => (
                 <IonItem key={contact.contactId} style={{ '--background': '#f8f6f2', borderRadius: '12px', marginBottom: '8px' }}>
                   <IonButton slot="start" fill="clear" onClick={() => handleToggleFavorite(contact.contactId)}>
                     <IonIcon icon={contact.favorite ? star : starOutline} style={{ fontSize: '20px', color: contact.favorite ? '#ffc107' : '#ccc' }} />
                   </IonButton>
+                  <IonModal isOpen={showPickerModal} onDidDismiss={() => setShowPickerModal(false)}>
+  <IonHeader>
+    <IonToolbar>
+      <IonButtons slot="start">
+        <IonButton onClick={() => setShowPickerModal(false)}>Cancel</IonButton>
+      </IonButtons>
+      <IonTitle>Your contacts</IonTitle>
+    </IonToolbar>
+    <IonToolbar>
+      <IonSearchbar
+        value={pickerQuery}
+        onIonInput={(e) => setPickerQuery(e.detail.value || '')}
+        placeholder="Buscar por nombre o teléfono"
+        debounce={150}
+      />
+    </IonToolbar>
+  </IonHeader>
+
+  <IonContent>
+    <IonList>
+      {filteredDeviceContacts.map(c => (
+        <IonItem key={c.id} button detail={false} onClick={() => toggleSelectDeviceContact(c.id)}>
+          <IonCheckbox slot="start" checked={selectedIds.has(c.id)} style={{ pointerEvents: 'none' }} />
+          <IonLabel>
+            <h3>{c.name}</h3>
+            <p>{c.phone}</p>
+          </IonLabel>
+        </IonItem>
+      ))}
+      {filteredDeviceContacts.length === 0 && (
+        <p style={{ textAlign: 'center', color: '#7d7267' }}>Contacts not found.</p>
+      )}
+    </IonList>
+  </IonContent>
+
+  <IonFooter>
+    <IonToolbar>
+      <IonButton
+        expand="block"
+        disabled={selectedIds.size === 0}
+        onClick={handleImportSelected}
+        style={{ margin: '8px 16px' }}
+      >
+        Add {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+      </IonButton>
+    </IonToolbar>
+  </IonFooter>
+</IonModal>
                   <IonLabel>
                     <h3 style={{ fontWeight: '700', color: '#2c2117' }}>
                       {contact.displayName} {contact.favorite && <span style={{fontSize: '10px', background: '#ffc107', color: '#fff', padding: '2px 6px', borderRadius: '4px', marginLeft: '4px'}}>Fav</span>}
