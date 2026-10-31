@@ -28,3 +28,40 @@
   --padding-end: 10px;
 }
 
+.large-button-outline {
+      display: flex;
+width: calc(100% - 32px);
+--color: var(--yellow-700);
+--border-radius: 12px;
+--background: var(--white);
+--border-color: var(--yellow-700);
+--border-style: solid;
+--border-width: 1px;
+--padding-top: 16px;
+--padding-bottom: 16px;
+--padding-start: 10px;
+--padding-end: 10px;
+}
+
+
+.align-centre {
+  align-self: stretch !important;
+  text-align: center;
+}
+
+.onboarding-box-container {
+  fill: aqua !important;
+  display: flex;
+  padding: 32px 16px 16px 16px;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  align-self: stretch;
+}
+
+.onboarding-img-container {
+  border-radius: 20px;
+  border: 1px solid var(--yellow-700) !important;
+  box-shadow: 0 4px 4px 0 rgba(0, 0, 0, 0.25);
+}
+

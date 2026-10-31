@@ -7,6 +7,8 @@ import {
   iconContainerStyle, titleStyle, descriptionStyle, 
   dotsContainerStyle, dotStyle, bottomContainerStyle, actionButtonStyle 
 } from './onboarding1';
+import '../components.css';
+import Picture3 from '../../assets/Walkthrough-Page/Picture3.png';
 
 const Onboarding3: React.FC = () => {
   const history = useHistory();
@@ -23,21 +25,17 @@ const Onboarding3: React.FC = () => {
 
       <IonContent style={contentBackgroundStyle} scrollY={false}>
         <div style={mainContainerStyle}>
-          
-          <div style={contentStyle}>
-            {/* Icono grande adaptado */}
-            <div style={iconContainerStyle}>
-              <svg width="130" height="130" viewBox="0 0 24 24" fill="none" stroke="#633A0E" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-                <path d="M2 15h20" strokeWidth="1" strokeDasharray="3 3"/>
-              </svg>
-            </div>
 
-            <h2 style={titleStyle}>We Track Your Time</h2>
-            <p style={descriptionStyle}>
-              No more forgetting to text "I'm home." SafeLink checks you in automatically based on your arrival time and temporary location tracking.
-            </p>
+          {/* content */}
+          <div className="onboarding-box-container">
+            <img
+              className="onboarding-img-container"
+              src={Picture3}
+              alt="Img"
+              width={350}
+              height={350}
+            />
+            <h2 style={titleStyle}>Alerted when arrive home and location sharing ended</h2>
           </div>
 
           {/* Indicador de Páginas (Punto 3 Activo) */}
@@ -45,17 +43,16 @@ const Onboarding3: React.FC = () => {
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
             <span style={{ ...dotStyle, backgroundColor: '#E6A937' }} />
-            <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
           </div>
 
           {/* Bandeja inferior dorada idéntica a la foto */}
           <div style={bottomContainerStyle}>
             <button 
-              onClick={() => history.push('/onboarding4')} 
+              onClick={() => history.push('/enterPasscode')} 
               style={actionButtonStyle}
               type="button"
             >
-              Next
+              Get Started
             </button>
           </div>
 
