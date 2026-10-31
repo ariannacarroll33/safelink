@@ -7,6 +7,8 @@ import {
   iconContainerStyle, titleStyle, descriptionStyle, 
   dotsContainerStyle, dotStyle, bottomContainerStyle, actionButtonStyle 
 } from './onboarding1';
+import '../components.css';
+import Picture2 from '../../assets/Walkthrough-Page/Picture2.png';
 
 const Onboarding2: React.FC = () => {
   const history = useHistory();
@@ -20,23 +22,21 @@ const Onboarding2: React.FC = () => {
           </div>
         </IonToolbar>
       </IonHeader>
-
       <IonContent style={contentBackgroundStyle} scrollY={false}>
         <div style={mainContainerStyle}>
-          
-          <div style={contentStyle}>
-            <div style={iconContainerStyle}>
-              <svg width="130" height="130" viewBox="0 0 24 24" fill="none" stroke="#633A0E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-              </svg>
-            </div>
 
-            <h2 style={titleStyle}>Share Through Link</h2>
-            <p style={descriptionStyle}>
-              SafeLink can send SMS messages with a live location link to your contact, meaning you are the only one who needs the app downloaded.
-            </p>
+          {/* content */}
+          <div className="onboarding-box-container">
+            <img
+              className="onboarding-img-container"
+              src={Picture2}
+              alt="Select contact and destination"
+              width={350}
+              height={350}
+            />
+            <h2 style={titleStyle}>Select contact and destination</h2>
           </div>
+
 
           {/* Indicador de Páginas (Punto 2 Activo) */}
           <div style={dotsContainerStyle}>

@@ -241,7 +241,7 @@ const MorePage: React.FC = () => {
         </IonToolbar>
       </IonHeader>
 
-      <IonContent className="yourlink-content">
+      <IonContent className="yourlink-content page-background">
         <div style={{ margin: '16px 16px 8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#633A0E', margin: 0 }}>Your Activity</h2>

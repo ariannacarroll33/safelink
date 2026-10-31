@@ -77,6 +77,14 @@ const Welcome: React.FC = () => {
           [DEV] Skip to app
         </button>
 
+                <button
+          type="button"
+          onClick={() => history.push('/onboarding1')}
+          style={devSkipButtonStyle}
+        >
+          [DEV] Skip to app
+        </button>
+
           </div>
 
         </div>

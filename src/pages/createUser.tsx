@@ -72,7 +72,7 @@ const CreateUser: React.FC = () => {
   const [name, setName] = useState<string>('');
   const [username, setUsername] = useState<string>('');
   const [email, setEmail] = useState<string>('');
-  const [countryPrefix, setCountryPrefix] = useState<string>('+34'); 
+  const [countryPrefix, setCountryPrefix] = useState<string>('+353'); 
   const [phone, setPhone] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');

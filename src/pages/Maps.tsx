@@ -5,8 +5,7 @@ import { notificationsOutline } from 'ionicons/icons';
 import alertNoise from '../assets/mixkit-facility-alarm-sound-999.wav';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import './Maps.css';
-import './Home.css'; // Reusing some of the deigns from here for SOS button
-// SOS Button imports
+import './components.css'
 import { Geolocation } from '@capacitor/geolocation';
 import { doc, collection, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
@@ -20,6 +19,7 @@ const SOSPage = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isAlarmActive, setIsAlarmActive] = useState<boolean>(false);
   const sosDocRef = useRef<ReturnType<typeof doc> | null>(null); // SOS Button
+  const sosWatchRef = useRef<string | null>(null); // Updating location
 
   // SOS ALARM
   function startAlarm() {
@@ -45,28 +45,49 @@ const SOSPage = () => {
     }
   };
 
-  // SOS Button. 
+// SOS Button. 
 const createSosTrip = async () => {
   const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
   const ref = doc(collection(db, 'trips'));
   sosDocRef.current = ref;
 
+  // Resued from Home.tsx. Reads off of Snapshot. 
   await setDoc(ref, {
     lat: pos.coords.latitude,
     lng: pos.coords.longitude,
     status: 'sos',
     updatedAt: Date.now(),
-    recipientPhone: '+353838181208', 
+    recipientPhone: '+353838181208',
   });
+
+  sosWatchRef.current = await Geolocation.watchPosition(
+    { enableHighAccuracy: true, maximumAge: 1000 },
+    (position) => {
+      if (position && sosDocRef.current) {
+        updateDoc(sosDocRef.current, {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          updatedAt: Date.now(),
+        });
+      }
+    }
+  );
 };
 
-// Ends the SOS trip in Firestore
+
+
+// Watching live position until status changes to SOS ending. Watch and update code resued from Home.tsx
 const endSosTrip = async () => {
+  if (sosWatchRef.current) {
+  Geolocation.clearWatch({ id: sosWatchRef.current });
+  sosWatchRef.current = null;
+}
   if (sosDocRef.current) {
     await updateDoc(sosDocRef.current, { status: 'sosEnded', updatedAt: Date.now() });
     sosDocRef.current = null;
   }
 };
+
 
 // Button logic. Kept console.log for testing.
 const toggleAlarm = () => {
@@ -97,26 +118,25 @@ const toggleAlarm = () => {
       </IonHeader>
 
 
-<IonContent>
-  <div className="sos-card">
-    <h1 className="sos-title h1-semibold">Press for Emergency</h1>
-    <p className="sos-body body-medium">
+<IonContent className="page-background">
+  <div className="sos-page-wrapper">
+    <h1 className="align-centre h1-semibold" style={{ color: 'var(--red-dark)' }}>
+  Press for Emergency
+</h1>
+<div className="sos-box-container">
+    <p className="body-medium style={{ color: 'var(--grey-600)' }" >
       An alert will be activated and your emergency contacts will be sent a text with your location
     </p>
-  </div>
-
-  <div className="sos-button-wrapper">
     <IonButton
       className={isAlarmActive ? 'sos-button-on' : 'sos-button-off'}
-      onClick={toggleAlarm}
-    >
-      {isAlarmActive ? 'STOP ALARM' : 'TRIGGER SOS'}
+      onClick={toggleAlarm}>
+      {isAlarmActive ? 'STOP ALARM' : 'SOS'}
     </IonButton>
+    </div>
   </div>
 </IonContent>
     </IonPage>
   );
-
 };
 
 export default SOSPage;
