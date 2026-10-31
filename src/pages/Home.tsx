@@ -88,6 +88,9 @@ const HomePage = () => {
   const [tripLink, setTripLink] = useState(''); 
   const [searchQuery, setSearchQuery] = useState('');
   const [showManualAlert, setShowManualAlert] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [tripId, setTripId] = useState<string | null>(null);
 
   // User Profile State
   const [userName, setUserName] = useState<string>('User');
@@ -502,6 +505,9 @@ const toggleSelected = (contactId: string) => {
   );
 };
 
+  // Contact bellow is Lauras code. Inially, she tried to do SMS Text, so possibly some old code is still here. However, Arianna not changing it, incase cause issues.
+  // Travelling state set up.
+  // (FIRESTORE TRIGGER FOR PUSH NOTIFICATION):Generate tracking link, open Web Share sheet if available, and transition to traveling state
 const visibleContacts = contacts
   .filter((c) => {
     if (panel === 'favorites') return c.isFavorite;
@@ -530,31 +536,14 @@ const visibleContacts = contacts
     return hasPlus ? `+${digits}` : digits;
   });
 
-  if (tripDocRef.current === null) {
-    const newTripRef = doc(collection(db, 'trips'));
-    tripDocRef.current = newTripRef;
-
-    const tripId = newTripRef.id;
-    const generatedLink = `https://yourdomain.com/track?tripId=${tripId}`;
-    setShareableLink(generatedLink);
-
-    if (navigator.share && recipientPhonesRef.current.length > 0) {
-      try {
-        await navigator.share({
-          title: 'Follow My Route',
-          text: `I am sharing my live route to ${destinationInput}. Follow along here:`,
-          url: generatedLink,
-        });
-      } catch (e) {
-        console.log('Share prompt dismissed or unsupported');
-      }
+      const generatedLink = `https://yourdomain.com/track?tripId=${tripId}`;
+      setShareableLink(generatedLink);
+      // Arianna deleted popup for 'Trigger native Web Share API dialog if supported'. Located in old files> Laura deleted code.
+      setTripStatus('traveling');
     }
 
-    setTripStatus('traveling');
-  }
-};
 
-// --- ARRIVED / END TRIP ---
+// Arrived state setup
 const handleEndTrip = async () => {
   if (watchIdRef.current) {
     Geolocation.clearWatch({ id: watchIdRef.current });
@@ -587,7 +576,8 @@ useIonViewWillEnter(() => {
 });
 
 
-// Getting directions code. 
+  // Arianna code again. 
+  // Getting directions code. 
   const getDirections = async (
     origin: { lat: number; lng: number },
     destination: string

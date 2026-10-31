@@ -6,6 +6,7 @@ import { IonModal, IonCheckbox, IonSpinner, IonFooter } from '@ionic/react';
 import { saveEmergencyContacts } from '../services/contactsService';
 import { cloudDownloadOutline } from 'ionicons/icons'; 
 import { Capacitor } from '@capacitor/core';
+import type { DocumentData } from 'firebase/firestore';
 import { Contacts } from '@capacitor-community/contacts';
 import './YourLink.css';
 
@@ -21,7 +22,7 @@ export interface EmergencyContact {
 // FIREBASE INTEGRATION
 import { auth, db } from '../services/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, } from 'firebase/firestore';
 
 const YourLinkPage = () => {
   const history = useHistory();
@@ -70,6 +71,14 @@ const YourLinkPage = () => {
         console.error('Error parsing local storage user data:', e);
       }
     }
+    let data: DocumentData = {};
+const currentUser = auth.currentUser;
+if (currentUser) {
+  const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
+  if (docSnap.exists()) {
+    data = docSnap.data();
+  }
+}
     if (Array.isArray(data.emergencyContacts)) {
   setEmergencyContacts(data.emergencyContacts);
 }

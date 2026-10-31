@@ -2,12 +2,12 @@ import React from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { IonApp, IonRouterOutlet, setupIonicReact, IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { homeOutline, mapOutline, linkOutline, ellipsisHorizontalOutline } from 'ionicons/icons';
+import { homeOutline, linkOutline, ellipsisHorizontalOutline, alertCircleOutline } from 'ionicons/icons';
 
 // Actual existing pages
 import Home from './pages/Home';
 import CreateUser from './pages/createUser'; 
-import MapsPage from './pages/Maps';    
+import SOSPage from './pages/Maps';    // SOS page was meant to be Maps but changed.
 import YourLinkPage from './pages/YourLink'; 
 import MorePage from './pages/More';  
 import NotificationsPage from './pages/Notifications';
@@ -97,7 +97,7 @@ function App() {
                 <Route path="/tabs/home" exact={true}>
                   <Home />
                 </Route>
-                <Route path="/tabs/maps" render={() => <MapsPage />} exact={true} />
+                <Route path="/tabs/sos" render={() => <SOSPage />} exact={true} />
                 <Route path="/tabs/yourlink" render={() => <YourLinkPage />} exact={true} />
                 <Route path="/tabs/more" render={() => <MorePage />} exact={true} /> 
               </IonRouterOutlet>
@@ -108,9 +108,9 @@ function App() {
                   <IonLabel>Home</IonLabel>
                 </IonTabButton>
 
-                <IonTabButton tab="maps" href="/tabs/maps"> 
-                  <IonIcon icon={mapOutline} />
-                  <IonLabel>Maps</IonLabel>
+                <IonTabButton tab="sos" href="/tabs/sos"> 
+                  <IonIcon icon={alertCircleOutline} />
+                  <IonLabel>SOS</IonLabel>
                 </IonTabButton>
 
                 <IonTabButton tab="yourlink" href="/tabs/yourlink"> 
@@ -130,8 +130,8 @@ function App() {
           <Route exact path="/home">
             <Redirect to="/tabs/home" />
           </Route>
-          <Route exact path="/maps">
-            <Redirect to="/tabs/maps" />
+          <Route exact path="/SOS">
+            <Redirect to="/tabs/sos" />
           </Route>
           <Route exact path="/yourlink">
             <Redirect to="/tabs/yourlink" />
