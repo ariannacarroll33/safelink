@@ -3,11 +3,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GoogleMap } from '@capacitor/google-maps';
 import { Geolocation } from '@capacitor/geolocation';
 import polyline from '@mapbox/polyline'; // Change string to corrdinates. 
-import { IonContent, IonHeader, IonPage, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonInput, IonCheckbox, IonList, IonItem, IonLabel, IonAvatar, useIonViewWillEnter } from '@ionic/react';
-import { useHistory } from 'react-router-dom';
-import { notificationsOutline, searchOutline, personOutline, walkOutline, bicycleOutline, carOutline, busOutline } from 'ionicons/icons';
 import './Home.css';
 import './components.css';
+import { IonContent, IonHeader, IonPage, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonInput, IonCheckbox, IonList, IonItem, IonLabel, IonAvatar, useIonViewWillEnter, IonToast } from '@ionic/react';
+import { useHistory } from 'react-router-dom';
+import { notificationsOutline, searchOutline, personOutline, walkOutline, bicycleOutline, carOutline, busOutline } from 'ionicons/icons';
+import Arrivedimage from '../assets/Walkthrough-Page/Arrivedimage.png';
+import toastIcon from '../assets/toast-icon.svg';
+
 
 // FIREBASE INTEGRATION
 import { auth, db } from '../services/firebaseConfig';
@@ -61,6 +64,8 @@ const HomePage = () => {
   const [eta, setEta] = useState('');
   const [tripLink, setTripLink] = useState('');
   const [transportMode, setTransportMode] = useState<TransportMode | null>(null); // Nothing selected for public transport by deafult.
+  const [showToast, setShowToast] = useState(false); // Toast popup for travelling and arrieved
+  const [showArrivedToast, setShowArrivedToast] = useState(false);
 
   // User Profile State
   const [userName, setUserName] = useState<string>('User');
@@ -156,6 +161,20 @@ const HomePage = () => {
     };
   }, []);
   // End Laura code. Contact & Search. 
+
+  // Toast Popup for traveling 
+  useEffect(() => {
+    if (tripStatus === 'traveling') {
+      setShowToast(true);
+    }
+  }, [tripStatus]);
+
+  // Toast Popup for arrived
+  useEffect(() => {
+    if (tripStatus === 'arrived') {
+      setShowArrivedToast(true);
+    }
+  }, [tripStatus]);
 
 
   // When status traveling. If the map is not created, create it.  
@@ -494,6 +513,7 @@ const HomePage = () => {
     (c.phoneNumber && c.phoneNumber.includes(searchQuery))
   );
 
+  const selectedContactName = contacts.find((c) => c.selected)?.displayName; // name which is selected. Used in Toast.
   return (
     //Start navigation 
     <IonPage>
@@ -663,12 +683,12 @@ const HomePage = () => {
               Begin
             </IonButton>
 
-<IonButton
-  className="large-button"
-  onClick={() => setTripStatus('notstarted')}
-  style={{ marginTop: 20, '--background': 'var(--grey-400)' }}>
-  Back
-</IonButton>
+            <IonButton
+              className="large-button-outline"
+              onClick={() => setTripStatus('notstarted')}
+              style={{ marginTop: 20 }}>
+              Back
+            </IonButton>
           </div>
 
         )}
@@ -737,10 +757,19 @@ const HomePage = () => {
               height: '100%',
             }}
           >
-            <p>You've arrived!</p>
-            <IonButton
+            <div className="onboarding-box-container">
+              <img
+                className="onboarding-img-container"
+                src={Arrivedimage}
+                alt="Img"
+                width={350}
+                height={350}
+              />
+            </div>
+            <IonButton className="large-button"
               onClick={() => {
                 setTripStatus('notstarted');
+                // Remove information
                 setDestinationInput('');
                 setIsDestinationSelected(false);
                 setContacts([]);
@@ -755,6 +784,25 @@ const HomePage = () => {
           </div>
         )}
       </IonContent>
+      <IonToast //Traveling toast popup
+        position="top"
+        isOpen={showToast}
+        header={`Text Sent To ${selectedContactName}`}
+        message={`I am traveling to ${destinationInput}. See live location here: https://safelink.com`}
+        onDidDismiss={() => setShowToast(false)}
+        duration={5000}
+        icon={toastIcon}
+      ></IonToast>
+
+      <IonToast //Arrived toast popup
+        position="top"
+        isOpen={showArrivedToast}
+        header={`Text sent to ${selectedContactName}`}
+        message={`I have arrived at ${destinationInput}`}
+        onDidDismiss={() => setShowArrivedToast(false)}
+        duration={5000}
+        icon={toastIcon}
+      ></IonToast>
     </IonPage>
   );
 };
