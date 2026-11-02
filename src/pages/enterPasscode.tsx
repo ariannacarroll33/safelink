@@ -172,7 +172,7 @@ const EnterPasscode: React.FC = () => {
           </h2>
           <p style={subtitleStyle}>
             {step === 1 
-              ? 'This code will be used to stop emergency texts being sent.'
+              ? 'Dont worry if you press the SOS button by mistake! Use this code to cancel any emergency text messages.'
               : 'Please confirm your 4-digit passcode to complete setup.'
             }
           </p>
