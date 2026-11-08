@@ -1,26 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import {
-  IonContent,
-  IonPage,
-  IonInput,
-  IonButton,
-  IonIcon,
-  IonToast,
-  IonItem,
-  IonHeader,
-  IonToolbar,
-  IonSelect,
-  IonSelectOption
-} from '@ionic/react';
+import {IonContent,IonPage,IonInput,IonButton,IonIcon,IonToast,IonItem,IonHeader,IonToolbar,IonSelect,IonSelectOption} from '@ionic/react';
 
-import {
-  personAddOutline,
-  mailOutline,
-  lockClosedOutline,
-  eyeOutline,
-  eyeOffOutline,
-  arrowBackOutline
-} from 'ionicons/icons';
+import {personAddOutline,mailOutline,lockClosedOutline,eyeOutline,eyeOffOutline,arrowBackOutline} from 'ionicons/icons';
 
 import { useHistory } from 'react-router-dom';
 
@@ -107,7 +88,7 @@ const CreateUser: React.FC = () => {
     isPasswordValid && 
     password === confirmPassword;
 
-  const selectedCountry = COUNTRIES.find(c => c.code === countryPrefix) || COUNTRIES[11];
+  const selectedCountry = COUNTRIES.find(c => c.code === countryPrefix) || COUNTRIES[17];
 
   const handleSignUp = (uid: string, fullPhone: string) => {
     const newUserData = {

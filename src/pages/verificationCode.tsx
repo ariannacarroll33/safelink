@@ -20,6 +20,8 @@ import { doc, setDoc } from 'firebase/firestore';
 // PLUGIN Google/SMS in Capacitor
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
+const CODE_LENGTH = 6;
+
 interface LocationState {
   phone?: string;
 }
@@ -27,19 +29,17 @@ interface LocationState {
 const VerificationCode: React.FC = () => {
   const history = useHistory();
   const location = useLocation<LocationState>();
-  
+
   const phone = location.state?.phone || '';
 
-  // Store 4 individual digits for the SMS verification code
-  const [digits, setDigits] = useState<string[]>(['', '', '', '']);
-  
   // References to handle automatic focus switching between input boxes
   const inputRefs = useRef<Array<HTMLIonInputElement | null>>([]);
 
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [smsSent, setSmsSent] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
-  
+  const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(''));
+
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
 
@@ -48,18 +48,27 @@ const VerificationCode: React.FC = () => {
 
   const resetSMSState = () => {
     setSmsSent(false);
-    setDigits(['', '', '', '']);
+    setDigits(Array(CODE_LENGTH).fill(''));
     setVerificationId(null);
   };
 
-  // Handle value change across the 4 code inputs
+  // Handle value change across the code inputs
   const handleDigitChange = (value: string, index: number) => {
-    const newChar = value.slice(-1);
-    const updatedDigits = [...digits];
-    updatedDigits[index] = newChar;
-    setDigits(updatedDigits);
+    const clean = value.replace(/\D/g, '');
 
-    if (newChar && index < 3) {
+    // Si pegan o autocompletan el código entero
+    if (clean.length > 1) {
+      const filled = clean.slice(0, CODE_LENGTH).split('');
+      setDigits([...filled, ...Array(CODE_LENGTH - filled.length).fill('')]);
+      inputRefs.current[Math.min(filled.length, CODE_LENGTH - 1)]?.setFocus();
+      return;
+    }
+
+    const updated = [...digits];
+    updated[index] = clean;
+    setDigits(updated);
+
+    if (clean && index < CODE_LENGTH - 1) {
       inputRefs.current[index + 1]?.setFocus();
     }
   };
@@ -74,7 +83,7 @@ const VerificationCode: React.FC = () => {
   // LISTENERS for Native Plugin SMS events
   useEffect(() => {
     const codeSentListener = FirebaseAuthentication.addListener('phoneCodeSent', (event: any) => {
-      console.log('SMS sent, verificationId received');
+      console.log('SMS sent, verificationId:', event.verificationId);
       setVerificationId(event.verificationId);
       setSmsSent(true);
       setLoading(false);
@@ -98,36 +107,50 @@ const VerificationCode: React.FC = () => {
   // OPTION 1: SEND SMS
   const handleSendSMS = async () => {
     setActiveMethod('sms');
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+
+    if (!auth.currentUser) {
       setToastMessage('User session not found. Please register again.');
       setShowToast(true);
       return;
     }
-
     if (!phone) {
       setToastMessage('Phone number not specified.');
+      setShowToast(true);
+      return;
+    }
+    if (!/^\+\d{8,15}$/.test(phone)) {
+      setToastMessage('Phone must be in international format, e.g. +34600123456');
       setShowToast(true);
       return;
     }
 
     try {
       setLoading(true);
+      setVerificationId(null); // descarta el ID del envío anterior
+      setDigits(Array(CODE_LENGTH).fill('')); // limpia los huecos
       console.log('Sending SMS to:', phone);
 
-      await FirebaseAuthentication.linkWithPhoneNumber({ phoneNumber: phone });
+      const result: any = await FirebaseAuthentication.linkWithPhoneNumber({ phoneNumber: phone });
+      console.log('linkWithPhoneNumber result:', JSON.stringify(result));
 
+      if (result?.verificationId) {
+        setVerificationId(result.verificationId);
+        setSmsSent(true);
+        setToastMessage('Verification code sent.');
+        setShowToast(true);
+      }
     } catch (error: any) {
-      setLoading(false);
-      console.error('Error sending SMS:', error);
-      setToastMessage(`Error sending SMS: ${error.message}`);
+      console.error('Error sending SMS:', JSON.stringify(error), error?.code, error?.message);
+      setToastMessage(`Error sending SMS: ${error?.code || error?.message || 'unknown error'}`);
       setShowToast(true);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // OPTION 1 (CONTINUED): VALIDATE 4-DIGIT SMS CODE
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // OPTION 1 (CONTINUED): VALIDATE SMS CODE
+  const handleVerifyCode = async (e?: React.SyntheticEvent) => {
+    e?.preventDefault();
 
     if (!verificationId) {
       setToastMessage('No active verification session. Send the SMS first.');
@@ -137,12 +160,32 @@ const VerificationCode: React.FC = () => {
 
     const verificationCode = digits.join('');
 
+    if (verificationCode.length !== CODE_LENGTH) {
+      setToastMessage(`Enter the ${CODE_LENGTH}-digit code.`);
+      setShowToast(true);
+      return;
+    }
+
     try {
       setLoading(true);
-      await FirebaseAuthentication.confirmVerificationCode({
-        verificationId,
-        verificationCode
-      });
+      console.log('Verifying with:', verificationId, verificationCode);
+
+      try {
+        // Intento 1: método documentado para confirmar el código
+        await FirebaseAuthentication.confirmVerificationCode({
+          verificationId,
+          verificationCode
+        });
+      } catch (firstError: any) {
+        console.error('confirmVerificationCode failed:', JSON.stringify(firstError), firstError?.code, firstError?.message);
+
+        // Intento 2: vincular el teléfono pasando el código
+        await FirebaseAuthentication.linkWithPhoneNumber({
+          phoneNumber: phone,
+          verificationId,
+          verificationCode
+        } as any);
+      }
 
       if (auth.currentUser) {
         await setDoc(doc(db, 'users', auth.currentUser.uid), {
@@ -155,18 +198,19 @@ const VerificationCode: React.FC = () => {
       setLoading(false);
       setToastMessage('Phone verified successfully!');
       setShowToast(true);
-      
-      history.push('/onboarding'); 
+
+      // next step direction is onboarding
+      history.push('/onboarding');
 
     } catch (error: any) {
       setLoading(false);
-      console.error('SMS verification failed:', error);
-      setToastMessage('Invalid code. Please check and try again.');
+      console.error('SMS verification failed:', JSON.stringify(error), error?.code, error?.message);
+      setToastMessage(`Verification failed: ${error?.code || error?.message || 'unknown error'}`);
       setShowToast(true);
     }
   };
 
-  // OPTION 2: VERIFY WITH GOOGLE (SOLUCIONADO CON setDoc)
+  // OPTION 2: VERIFY WITH GOOGLE
   const handleVerifyWithGoogle = async () => {
     setActiveMethod('google');
     resetSMSState();
@@ -178,7 +222,6 @@ const VerificationCode: React.FC = () => {
       const user = auth.currentUser || result.user;
 
       if (user) {
-        // setDoc con merge:true crea el documento si no existe o lo actualiza si ya existe
         await setDoc(doc(db, 'users', user.uid), {
           verified: true,
           verifiedBy: 'google',
@@ -189,8 +232,8 @@ const VerificationCode: React.FC = () => {
       setLoading(false);
       setToastMessage('Account verified with Google!');
       setShowToast(true);
-      
-      history.push('/onboarding'); 
+
+      history.push('/onboarding');
     } catch (error: any) {
       setLoading(false);
       console.error('Error with Google Auth:', error);
@@ -237,30 +280,27 @@ const VerificationCode: React.FC = () => {
             <IonIcon icon={chatbubbleOutline} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
             Option 1: Verify via SMS
           </h3>
-          
-          {activeMethod === 'sms' && !smsSent && (
+
+          {activeMethod === 'sms' && (
             <div>
               <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
                 We will send a validation code to: <strong>{phone || 'unspecified number'}</strong>
               </p>
-              <IonButton 
-                expand="block" 
+
+              <IonButton
+                expand="block"
                 onClick={handleSendSMS}
                 disabled={loading || !phone}
                 style={{ '--background': '#E6A937', '--color': '#FFF', '--border-radius': '10px' }}
               >
-                {loading ? 'Sending...' : 'Send Code via SMS'}
+                {loading ? 'Sending...' : smsSent ? 'Resend Code' : 'Send Code via SMS'}
               </IonButton>
-            </div>
-          )}
 
-          {activeMethod === 'sms' && smsSent && (
-            <form onSubmit={handleVerifyCode}>
-              <p style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>
-                Enter the 4-digit code received:
+              <p style={{ fontSize: '13px', color: '#666', margin: '16px 0 8px' }}>
+                Enter the {CODE_LENGTH}-digit code you receive by SMS:
               </p>
-              
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', margin: '12px 0' }}>
+
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', margin: '12px 0' }}>
                 {digits.map((digit, index) => (
                   <div key={index} style={digitInputBoxStyle}>
                     <IonItem lines="none" style={itemStyle}>
@@ -268,11 +308,12 @@ const VerificationCode: React.FC = () => {
                         ref={(el: HTMLIonInputElement | null) => {
                           inputRefs.current[index] = el;
                         }}
-                        type="number"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="one-time-code"
                         value={digit}
-                        onIonInput={(e) => handleDigitChange(e.detail.value || '', index)}
+                        onIonInput={(e) => handleDigitChange(String(e.detail.value || ''), index)}
                         onKeyDown={(e) => handleKeyDown(e, index)}
-                        maxlength={1}
                         style={{ textAlign: 'center', fontSize: '20px', fontWeight: 'bold' }}
                       />
                     </IonItem>
@@ -280,29 +321,20 @@ const VerificationCode: React.FC = () => {
                 ))}
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-                <IonButton 
-                  expand="block" 
-                  type="submit"
-                  disabled={loading || digits.join('').length !== 4}
-                  style={{ flex: 1, '--background': '#E6A937', '--color': '#FFF', '--border-radius': '10px' }}
-                >
-                  {loading ? 'Verifying...' : 'Verify Code'}
-                </IonButton>
-                <IonButton 
-                  fill="outline"
-                  onClick={() => resetSMSState()}
-                  style={{ '--border-radius': '10px', '--color': '#E6A937', '--border-color': '#E6A937' }}
-                >
-                  Change Method
-                </IonButton>
-              </div>
-            </form>
+              <IonButton
+                expand="block"
+                onClick={handleVerifyCode as any}
+                disabled={loading || !verificationId || digits.join('').length !== CODE_LENGTH}
+                style={{ '--background': '#E6A937', '--color': '#FFF', '--border-radius': '10px' }}
+              >
+                {loading ? 'Verifying...' : 'Verify Code'}
+              </IonButton>
+            </div>
           )}
 
           {activeMethod !== 'sms' && (
-            <IonButton 
-              fill="clear" 
+            <IonButton
+              fill="clear"
               expand="block"
               size="small"
               onClick={() => setActiveMethod('sms')}
@@ -312,12 +344,11 @@ const VerificationCode: React.FC = () => {
             </IonButton>
           )}
         </div>
-
         {/* ================= VISUAL DIVIDER ================= */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           margin: '28px 0 20px 0',
           color: '#633A0E',
           fontSize: '13px',
@@ -367,7 +398,6 @@ const headerToolbarStyle = { '--background': '#E5A93C', '--border-width': '0' };
 const headerFlexContainer: React.CSSProperties = { height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' };
 const backButtonStyle: React.CSSProperties = { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'rgba(0, 0, 0, 0.2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' };
 const headerTitleStyle: React.CSSProperties = { color: '#FFFFFF', fontSize: '22px', fontWeight: '700', margin: 0 };
-const itemStyle = { '--background': 'transparent', '--min-height': 'unset' };
 
 const sectionBoxStyle: React.CSSProperties = {
   backgroundColor: '#FFFFFF',
@@ -383,10 +413,18 @@ const sectionTitleStyle: React.CSSProperties = {
   color: '#633A0E',
   margin: '0 0 12px 0'
 };
+const itemStyle = {
+  '--background': 'transparent',
+  '--min-height': 'unset',
+  '--padding-start': '0px',
+  '--padding-end': '0px',
+  '--inner-padding-end': '0px',
+  width: '100%'
+};
 
 const digitInputBoxStyle: React.CSSProperties = {
   flex: 1,
-  maxWidth: '50px',
+  maxWidth: '52px',
   height: '50px',
   background: '#F5F5F5',
   borderRadius: '10px',

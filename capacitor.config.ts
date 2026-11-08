@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'io.ionic.starter',
+  appId: 'arianna.phone',
   appName: 'safelink',
   webDir: 'dist',
   plugins: {
@@ -10,7 +10,7 @@ const config: CapacitorConfig = {
     },
     FirebaseAuthentication: {
       skipNativeAuth: false,
-      providers: ['google.com',],
+      providers: ['phone','google.com',],
     },
   },
 };
