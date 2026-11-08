@@ -1,6 +1,9 @@
 import React from 'react';
 import { IonContent, IonPage, IonHeader, IonToolbar } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
+import '../components.css';
+import Picture1 from '../../assets/Walkthrough-Page/Picture1.png';
+
 
 const Onboarding1: React.FC = () => {
   const history = useHistory();
@@ -17,22 +20,17 @@ const Onboarding1: React.FC = () => {
 
       <IonContent style={contentBackgroundStyle} scrollY={false}>
         <div style={mainContainerStyle}>
-          
-          {/* content */}
-          <div style={contentStyle}>
-            <div style={iconContainerStyle}>
-              <svg width="130" height="130" viewBox="0 0 24 24" fill="none" stroke="#633A0E" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 10c0 4.418-8 12-8 12s-8-7.582-8-12a8 8 0 1 1 16 0Z"/>
-                <circle cx="12" cy="10" r="3"/>
-                <path d="M4 18c-1.5 0-2 1-.5 2s4.5.5 5.5-1M20 18c1.5 0 2 1 .5 2s-4.5.5-5.5-1" />
-                <path d="M8 19c2-2 6-2 8 0" strokeDasharray="2 2" />
-              </svg>
-            </div>
 
-            <h2 style={titleStyle}>Your Journey, Fully Covered</h2>
-            <p style={descriptionStyle}>
-              SafeLink keeps you safe on the move, entirely on your terms. No constant tracking, no battery drain, and zero hassle for your loved ones..
-            </p>
+          {/* content */}
+          <div className="onboarding-box-container">
+            <img
+              className="onboarding-img-container"
+              src={Picture1}
+              alt="Img"
+              width={350}
+              height={350}
+            />
+            <h2 style={titleStyle}>Select contact and destination</h2>
           </div>
 
           {/* space and style - colours */}
@@ -40,13 +38,12 @@ const Onboarding1: React.FC = () => {
             <span style={{ ...dotStyle, backgroundColor: '#E6A937' }} />
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
-            <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
           </div>
 
           {/* next button */}
           <div style={bottomContainerStyle}>
-            <button 
-              onClick={() => history.push('/onboarding2')} 
+            <button
+              onClick={() => history.push('/onboarding2')}
               style={actionButtonStyle}
               type="button"
             >
@@ -82,7 +79,7 @@ export const bottomContainerStyle: React.CSSProperties = {
   backgroundColor: '#E5A93C',
   borderTopLeftRadius: '32px',
   borderTopRightRadius: '32px',
-  padding: '24px 20px 34px 20px', 
+  padding: '24px 20px 34px 20px',
   width: '100%',
   boxShadow: '0 -6px 15px rgba(214, 158, 59, 0.3)',
   display: 'flex',
@@ -95,7 +92,7 @@ export const actionButtonStyle: React.CSSProperties = {
   width: '100%',
   height: '56px',
   backgroundColor: '#FFFFFF',
-  color: '#84623D', 
+  color: '#84623D',
   border: '3px solid #84623D',
   borderRadius: '20px',
   fontSize: '20px',
