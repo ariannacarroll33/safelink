@@ -58,6 +58,21 @@ const chip = (active: boolean): React.CSSProperties => ({
   cursor: 'pointer',
 });
 
+const shortcutButton = (active: boolean, accent: string, tint: string): React.CSSProperties => ({
+  flex: 1,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: '10px 12px',
+  borderRadius: 16,
+  border: active ? `2px solid ${accent}` : '1px solid #E0CFA8',
+  background: active ? tint : '#FFFFFF',
+  boxShadow: active ? `0 3px 10px ${accent}44` : '0 1px 3px rgba(0, 0, 0, 0.06)',
+  cursor: 'pointer',
+  textAlign: 'left',
+  transition: 'all 0.15s ease',
+});
+
 // filtering and selecting people
 type Panel = 'favorites' | 'emergency' | 'all' | null;
 
@@ -314,7 +329,7 @@ const HomePage = () => {
       setPredictions([]);
       return;
     }
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_KEY as string;
+    const apiKey = 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI';
     const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}`;
     const res = await fetch(url);
     const data = await res.json();
@@ -367,7 +382,7 @@ const HomePage = () => {
     const newMap = await GoogleMap.create({
       id: 'trip-map',
       element: mapElement,
-      apiKey: import.meta.env.VITE_GOOGLE_MAPS_KEY as string,
+      apiKey: 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI',
       config: {
         center: {
           lat: currentPosition.coords.latitude,
@@ -606,7 +621,7 @@ const HomePage = () => {
     origin: { lat: number; lng: number },
     destination: string
   ) => {
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_KEY as string;
+    const apiKey = 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI';
     const originStr = `${origin.lat},${origin.lng}`;
     const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${encodeURIComponent(destination)}&key=${apiKey}`;
 
@@ -656,6 +671,9 @@ const HomePage = () => {
 
 
   const selectedContactName = contacts.find((c) => c.selected)?.displayName; // name which is selected. Used in Toast.
+  const selectedList = contacts.filter((c) => c.selected);
+  const favoriteContacts = contacts.filter((c) => c.isFavorite);
+  const emergencyContacts = contacts.filter((c) => c.isEmergency);
 
   return (
     //Start navigation 
@@ -809,25 +827,49 @@ const HomePage = () => {
                 )}
               </IonList>
               {/* Favorites and Emergency shortcuts */}
-              <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 8 }}>
+              <div style={{ display: 'flex', gap: 10, marginTop: 12, marginBottom: 8 }}>
 
                 <button
                   onClick={() => handleShortcut('favorites')}
-                  style={chip(panel === 'favorites')}
+                  style={shortcutButton(panel === 'favorites', '#E5A63A', '#FFF4D6')}
                 >
-                  <IonIcon icon={star} style={{ color: '#E5A63A' }} />
-                  Favorites ({contacts.filter((c) => c.isFavorite).length})
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#FFF4D6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <IonIcon icon={star} style={{ color: '#E5A63A', fontSize: 18 }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: '#7A4510' }}>Favorites</span>
+                    <span style={{ fontSize: 11, color: '#9A7B55' }}>
+                      {favoriteContacts.length === 0
+                        ? 'None yet'
+                        : `${favoriteContacts.filter((c) => c.selected).length}/${favoriteContacts.length} selected`}
+                    </span>
+                  </div>
                 </button>
 
                 <button
                   onClick={() => handleShortcut('emergency')}
-                  style={chip(panel === 'emergency')}
+                  style={shortcutButton(panel === 'emergency', '#D9534F', '#FDE8E7')}
                 >
-                  <IonIcon icon={alertCircle} style={{ color: '#D9534F' }} />
-                  Emergency ({contacts.filter((c) => c.isEmergency).length})
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#FDE8E7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <IonIcon icon={alertCircle} style={{ color: '#D9534F', fontSize: 18 }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: '#7A4510' }}>Emergency</span>
+                    <span style={{ fontSize: 11, color: '#9A7B55' }}>
+                      {emergencyContacts.length === 0
+                        ? 'None yet'
+                        : `${emergencyContacts.filter((c) => c.selected).length}/${emergencyContacts.length} selected`}
+                    </span>
+                  </div>
                 </button>
 
               </div>
+
+              {selectedList.length > 0 && (
+                <div style={{ fontSize: 12, color: 'var(--grey-600)', marginTop: 4, lineHeight: 1.4 }}>
+                  <strong>{selectedList.length} selected:</strong> {selectedList.map((c) => c.displayName).join(', ')}
+                </div>
+              )}
             </div>
 
             <div className="box-container" style={{ marginTop: 20, width: '100%' }}>
