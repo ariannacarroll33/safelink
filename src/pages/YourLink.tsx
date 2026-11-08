@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { IonContent, IonHeader, IonSearchbar, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon, IonAvatar, IonToast, IonAlert, IonList, IonItem, IonLabel, useIonViewWillEnter } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
-import { notificationsOutline, closeCircleOutline, navigateOutline, linkOutline, cameraOutline, personOutline, createOutline, callOutline, peopleOutline, addCircleOutline, trashOutline, star, starOutline } from 'ionicons/icons';
+import { notificationsOutline, closeCircleOutline, navigateOutline, linkOutline, cameraOutline, personOutline, createOutline, callOutline, peopleOutline, addCircleOutline, trashOutline, star, starOutline, chevronForwardOutline } from 'ionicons/icons';
 import { IonModal, IonCheckbox, IonSpinner, IonFooter } from '@ionic/react';
 import { saveEmergencyContacts } from '../services/contactsService';
 import { cloudDownloadOutline } from 'ionicons/icons'; 
@@ -17,6 +17,12 @@ export interface EmergencyContact {
   relation?: string;
   selected?: boolean;
   favorite?: boolean;
+}
+
+interface DeviceContact {
+  id: string;
+  name: string;
+  phone: string;
 }
 
 // FIREBASE INTEGRATION
@@ -72,31 +78,16 @@ const YourLinkPage = () => {
       }
     }
     let data: DocumentData = {};
-const currentUser = auth.currentUser;
-if (currentUser) {
-  const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
-  if (docSnap.exists()) {
-    data = docSnap.data();
-  }
-}
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
+      if (docSnap.exists()) {
+        data = docSnap.data();
+      }
+    }
     if (Array.isArray(data.emergencyContacts)) {
-  setEmergencyContacts(data.emergencyContacts);
-}
-const saveContactsToStorageAndFirebase = async (updatedList: EmergencyContact[]) => {
-  setEmergencyContacts(updatedList);
-  const savedSession = localStorage.getItem('safelink_user');
-  const userData = savedSession ? JSON.parse(savedSession) : { id: userId };
-  userData.emergencyContacts = updatedList;
-  localStorage.setItem('safelink_user', JSON.stringify(userData));
-
-  try {
-    await saveEmergencyContacts(updatedList);
-  } catch (e) {
-    console.error('Error saving contacts to Firebase:', e);
-    setToastMessage('Guardado solo en el móvil (sin conexión)');
-    setShowToast(true);
-  }
-};
+      setEmergencyContacts(data.emergencyContacts);
+    }
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserId(user.uid);
@@ -108,7 +99,7 @@ const saveContactsToStorageAndFirebase = async (updatedList: EmergencyContact[])
             if (data.phone) setUserPhone(data.phone);
             if (data.avatarUrl) setProfileImage(data.avatarUrl);
             if (Array.isArray(data.emergencyContacts) && data.emergencyContacts.length > 0) {
-            setEmergencyContacts(data.emergencyContacts);
+              setEmergencyContacts(data.emergencyContacts);
             }
           }
         } catch (e) {
@@ -125,48 +116,6 @@ const saveContactsToStorageAndFirebase = async (updatedList: EmergencyContact[])
   useEffect(() => {
     loadUserData();
   }, []);
-
-  // GEOLOCATION
-  useEffect(() => {
-    if (!isLive) {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(Number(watchIdRef.current));
-        watchIdRef.current = null;
-      }
-      return;
-    }
-
-    if ('geolocation' in navigator) {
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-            const data = await res.json();
-            const city = data.address?.city || data.address?.town || data.address?.village || '';
-            const road = data.address?.road || data.address?.suburb || '';
-            const locationString = road ? `${road}, ${city}` : `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-            setUserLocation(locationString);
-            setLastKnownLocation(locationString);
-          } catch (err) {
-            const fallback = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-            setUserLocation(fallback);
-            setLastKnownLocation(fallback);
-          }
-        },
-        () => setUserLocation('Location Permission Disabled'),
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-      );
-    } else {
-      setUserLocation('Geolocation not supported');
-    }
-
-    return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(Number(watchIdRef.current));
-      }
-    };
-  }, [isLive]);
 
   const toggleLiveStatus = () => {
     setIsLive(!isLive);
@@ -249,97 +198,100 @@ const saveContactsToStorageAndFirebase = async (updatedList: EmergencyContact[])
     }
   };
 
-  interface DeviceContact {
-  id: string;
-  name: string;
-  phone: string;
-}
+  const normalizePhone = (p: string) => p.replace(/[^\d+]/g, '');
 
-const normalizePhone = (p: string) => p.replace(/[^\d+]/g, '');
-
-const openDeviceContactsPicker = async () => {
-  if (!Capacitor.isNativePlatform()) {
-    setToastMessage('Esta función solo está disponible en la app móvil');
-    setShowToast(true);
-    return;
-  }
-
-  try {
-    setLoadingContacts(true);
-
-    const perm = await Contacts.requestPermissions();
-    if (perm.contacts !== 'granted') {
-      setToastMessage('Permiso de contactos denegado');
+  const openDeviceContactsPicker = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      setToastMessage('Esta función solo está disponible en la app móvil');
       setShowToast(true);
       return;
     }
 
-    const { contacts } = await Contacts.getContacts({
-      projection: { name: true, phones: true },
+    try {
+      setLoadingContacts(true);
+
+      let perm = await Contacts.checkPermissions();
+      if (perm.contacts !== 'granted') {
+        perm = await Contacts.requestPermissions();
+      }
+      if (perm.contacts !== 'granted') {
+        setToastMessage('Permiso de contactos denegado. Actívalo en los Ajustes del móvil');
+        setShowToast(true);
+        return;
+      }
+
+      const { contacts } = await Contacts.getContacts({
+        projection: { name: true, phones: true },
+      });
+
+      const list: DeviceContact[] = (contacts || [])
+        .filter(c => c.phones && c.phones.length > 0 && c.phones[0].number)
+        .map((c, i) => ({
+          id: (c.contactId as string) || `device_${i}`,
+          name: c.name?.display || c.name?.given || c.phones![0].number!,
+          phone: c.phones![0].number!,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      if (list.length === 0) {
+        setToastMessage('No se encontraron contactos con teléfono');
+        setShowToast(true);
+        return;
+      }
+
+      setDeviceContacts(list);
+      setSelectedIds(new Set());
+      setPickerQuery('');
+      setShowPickerModal(true);
+    } catch (e) {
+      console.error('Error reading device contacts:', e);
+      setToastMessage('No se pudieron leer los contactos');
+      setShowToast(true);
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
+  const toggleSelectDeviceContact = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
     });
+  };
 
-    const list: DeviceContact[] = contacts
-      .filter(c => c.phones && c.phones.length > 0 && c.phones[0].number)
+  const handleImportSelected = async () => {
+    // Evita duplicados comparando por teléfono
+    const existingPhones = new Set(emergencyContacts.map(c => normalizePhone(c.phoneNumber)));
+
+    const toAdd: EmergencyContact[] = deviceContacts
+      .filter(c => selectedIds.has(c.id) && !existingPhones.has(normalizePhone(c.phone)))
       .map(c => ({
-        id: c.contactId,
-        name: c.name?.display || c.phones![0].number!,
-        phone: c.phones![0].number!,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+        contactId: `contact_${Date.now()}_${c.id}`,
+        displayName: c.name,
+        phoneNumber: c.phone,
+        relation: '',
+        favorite: false,
+      }));
 
-    setDeviceContacts(list);
-    setSelectedIds(new Set());
-    setPickerQuery('');
-    setShowPickerModal(true);
-  } catch (e) {
-    console.error('Error reading device contacts:', e);
-    setToastMessage('No se pudieron leer los contactos');
-    setShowToast(true);
-  } finally {
-    setLoadingContacts(false);
-  }
-};
+    if (toAdd.length === 0) {
+      setToastMessage('Esos contactos ya estaban en tu lista');
+      setShowToast(true);
+      setShowPickerModal(false);
+      return;
+    }
 
-const toggleSelectDeviceContact = (id: string) => {
-  setSelectedIds(prev => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
-};
-
-const handleImportSelected = async () => {
-  // Evita duplicados comparando por teléfono
-  const existingPhones = new Set(emergencyContacts.map(c => normalizePhone(c.phoneNumber)));
-
-  const toAdd: EmergencyContact[] = deviceContacts
-    .filter(c => selectedIds.has(c.id) && !existingPhones.has(normalizePhone(c.phone)))
-    .map(c => ({
-      contactId: `contact_${Date.now()}_${c.id}`,
-      displayName: c.name,
-      phoneNumber: c.phone,
-      relation: '',
-      favorite: false,
-    }));
-
-  if (toAdd.length === 0) {
-    setToastMessage('Esos contactos ya estaban en tu lista');
-    setShowToast(true);
+    await saveContactsToStorageAndFirebase([...emergencyContacts, ...toAdd]);
     setShowPickerModal(false);
-    return;
-  }
+    setToastMessage(`${toAdd.length} contacto(s) añadido(s)`);
+    setShowToast(true);
+  };
 
-  await saveContactsToStorageAndFirebase([...emergencyContacts, ...toAdd]);
-  setShowPickerModal(false);
-  setToastMessage(`${toAdd.length} contacto(s) añadido(s)`);
-  setShowToast(true);
-};
-
-const filteredDeviceContacts = deviceContacts.filter(c => {
-  const q = pickerQuery.trim().toLowerCase();
-  if (!q) return true;
-  return c.name.toLowerCase().includes(q) || normalizePhone(c.phone).includes(normalizePhone(q));
-});
+  const filteredDeviceContacts = deviceContacts.filter(c => {
+    const q = pickerQuery.trim().toLowerCase();
+    if (!q) return true;
+    return c.name.toLowerCase().includes(q) || normalizePhone(c.phone).includes(normalizePhone(q));
+  });
 
   const handleAddEmergencyContact = async (contactName: string, contactPhone: string, contactRelation?: string) => {
     if (contactName && contactPhone) {
@@ -482,13 +434,56 @@ const filteredDeviceContacts = deviceContacts.filter(c => {
               <IonIcon icon={addCircleOutline} style={{ fontSize: '22px', color: '#633A0E' }} />
             </IonButton>
           </div>
-      <IonButton
-        expand="block"
-        fill="outline"
-        onClick={openDeviceContactsPicker}
-        disabled={loadingContacts}
-        style={{ '--color': '#633A0E', '--border-color': '#633A0E', marginTop: '8px' }}>
-        {loadingContacts ? <IonSpinner name="dots" /> : (<> <IonIcon slot="start" icon={cloudDownloadOutline} />Search through your contacts </>)} </IonButton>
+
+          <button
+            type="button"
+            onClick={openDeviceContactsPicker}
+            disabled={loadingContacts}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '12px 14px',
+              marginBottom: 12,
+              borderRadius: 16,
+              border: '1px solid #E0CFA8',
+              background: 'linear-gradient(135deg, #FFF4D6 0%, #FFE9B8 100%)',
+              boxShadow: '0 2px 6px rgba(99, 58, 14, 0.10)',
+              cursor: loadingContacts ? 'default' : 'pointer',
+              opacity: loadingContacts ? 0.85 : 1,
+              textAlign: 'left',
+            }}
+          >
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: '#633A0E',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {loadingContacts ? (
+                <IonSpinner name="crescent" style={{ color: '#FFF4D6', width: 20, height: 20 }} />
+              ) : (
+                <IonIcon icon={cloudDownloadOutline} style={{ color: '#FFF4D6', fontSize: 20 }} />
+              )}
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+              <span style={{ fontWeight: 700, fontSize: 14, color: '#633A0E' }}>
+                {loadingContacts ? 'Reading your contacts...' : 'Import from your phone'}
+              </span>
+              <span style={{ fontSize: 11, color: '#7d7267' }}>
+                Choose contacts from your device to add them here
+              </span>
+            </div>
+            <IonIcon icon={chevronForwardOutline} style={{ color: '#633A0E', fontSize: 18 }} />
+          </button>
+
           <IonList lines="none" style={{ background: 'transparent' }}>
             {emergencyContacts.length === 0 ? (
               <p style={{ fontSize: '13px', color: '#7d7267', textAlign: 'center', margin: '8px 0' }}>
@@ -500,54 +495,6 @@ const filteredDeviceContacts = deviceContacts.filter(c => {
                   <IonButton slot="start" fill="clear" onClick={() => handleToggleFavorite(contact.contactId)}>
                     <IonIcon icon={contact.favorite ? star : starOutline} style={{ fontSize: '20px', color: contact.favorite ? '#ffc107' : '#ccc' }} />
                   </IonButton>
-                  <IonModal isOpen={showPickerModal} onDidDismiss={() => setShowPickerModal(false)}>
-  <IonHeader>
-    <IonToolbar>
-      <IonButtons slot="start">
-        <IonButton onClick={() => setShowPickerModal(false)}>Cancel</IonButton>
-      </IonButtons>
-      <IonTitle>Your contacts</IonTitle>
-    </IonToolbar>
-    <IonToolbar>
-      <IonSearchbar
-        value={pickerQuery}
-        onIonInput={(e) => setPickerQuery(e.detail.value || '')}
-        placeholder="Buscar por nombre o teléfono"
-        debounce={150}
-      />
-    </IonToolbar>
-  </IonHeader>
-
-  <IonContent>
-    <IonList>
-      {filteredDeviceContacts.map(c => (
-        <IonItem key={c.id} button detail={false} onClick={() => toggleSelectDeviceContact(c.id)}>
-          <IonCheckbox slot="start" checked={selectedIds.has(c.id)} style={{ pointerEvents: 'none' }} />
-          <IonLabel>
-            <h3>{c.name}</h3>
-            <p>{c.phone}</p>
-          </IonLabel>
-        </IonItem>
-      ))}
-      {filteredDeviceContacts.length === 0 && (
-        <p style={{ textAlign: 'center', color: '#7d7267' }}>Contacts not found.</p>
-      )}
-    </IonList>
-  </IonContent>
-
-  <IonFooter>
-    <IonToolbar>
-      <IonButton
-        expand="block"
-        disabled={selectedIds.size === 0}
-        onClick={handleImportSelected}
-        style={{ margin: '8px 16px' }}
-      >
-        Add {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
-      </IonButton>
-    </IonToolbar>
-  </IonFooter>
-</IonModal>
                   <IonLabel>
                     <h3 style={{ fontWeight: '700', color: '#2c2117' }}>
                       {contact.displayName} {contact.favorite && <span style={{fontSize: '10px', background: '#ffc107', color: '#fff', padding: '2px 6px', borderRadius: '4px', marginLeft: '4px'}}>Fav</span>}
@@ -635,6 +582,54 @@ const filteredDeviceContacts = deviceContacts.filter(c => {
   </IonList>
 </div>
 
+        <IonModal isOpen={showPickerModal} onDidDismiss={() => setShowPickerModal(false)}>
+          <IonHeader>
+            <IonToolbar>
+              <IonButtons slot="start">
+                <IonButton onClick={() => setShowPickerModal(false)}>Cancel</IonButton>
+              </IonButtons>
+              <IonTitle>Your contacts</IonTitle>
+            </IonToolbar>
+            <IonToolbar>
+              <IonSearchbar
+                value={pickerQuery}
+                onIonInput={(e) => setPickerQuery(e.detail.value || '')}
+                placeholder="Buscar por nombre o teléfono"
+                debounce={150}
+              />
+            </IonToolbar>
+          </IonHeader>
+
+          <IonContent>
+            <IonList>
+              {filteredDeviceContacts.map(c => (
+                <IonItem key={c.id} button detail={false} onClick={() => toggleSelectDeviceContact(c.id)}>
+                  <IonCheckbox slot="start" checked={selectedIds.has(c.id)} style={{ pointerEvents: 'none' }} />
+                  <IonLabel>
+                    <h3>{c.name}</h3>
+                    <p>{c.phone}</p>
+                  </IonLabel>
+                </IonItem>
+              ))}
+              {filteredDeviceContacts.length === 0 && (
+                <p style={{ textAlign: 'center', color: '#7d7267' }}>Contacts not found.</p>
+              )}
+            </IonList>
+          </IonContent>
+
+          <IonFooter>
+            <IonToolbar>
+              <IonButton
+                expand="block"
+                disabled={selectedIds.size === 0}
+                onClick={handleImportSelected}
+                style={{ margin: '8px 16px' }}
+              >
+                Add {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+              </IonButton>
+            </IonToolbar>
+          </IonFooter>
+        </IonModal>
 
         <IonAlert
           isOpen={showEditAlert}
