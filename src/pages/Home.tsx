@@ -370,7 +370,8 @@ const HomePage = () => {
         destination: destinationInput, 
         status: 'traveling', 
         updatedAt: Date.now(), 
-        recipientPhone: '+353838181208', // TODO: replace with real trusted contact 
+        recipientPhone: recipientPhonesRef.current[0] ?? null, // changed. lost in merge. NOTE
+        userName: userName,
       }); 
     } 
 
@@ -645,7 +646,7 @@ const HomePage = () => {
       updateDoc(tripDocRef.current, { 
         destLat: endLocation.lat, 
         destLng: endLocation.lng, 
-        recipientPhone: '+353838181208', // TODO: replace with real secondary user number 
+        recipientPhone: recipientPhonesRef.current[0] ?? null, // Changed. Lost in merge.
       }); 
     } 
 
@@ -704,7 +705,7 @@ const HomePage = () => {
       <IonContent className="page-background">
         {tripStatus === 'notstarted' && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-            <IonButton className="start-button" onClick={() => setTripStatus('tripinformation')}>Start Trip test</IonButton>
+            <IonButton className="start-button" onClick={() => setTripStatus('tripinformation')}>Start Trip</IonButton>
           </div>
         )}
 

@@ -93,13 +93,15 @@ export const sendTripStartSms = onDocumentCreated( // Cloud Firestore function t
   { document: 'trips/{tripId}', secrets: [twilioAuthToken] },
   async (event) => {
     const trip = event.data?.data();
+    const userSnap = trip?.uid ? await admin.firestore().doc(`users/${trip.uid}`).get() : null;
+    const name = userSnap?.data()?.name || trip?.userName || 'Someone';
     const client = twilio(twilioAccountSid, twilioAuthToken.value());
     try {
       // 'Send SMS and MMS messages' Doc from Twillo
       const message = await client.messages.create({
-        body: trip?.status === 'sos' // For if user selects SOS button. 
-        ? `SafeLink SOS: I need help. Follow my live location: https://safelinkwatcher.com/watch/${event.params.tripId}` // SOS message
-        : `SafeLink: I have just started a trip to ${trip?.destination || 'my destination'}. Follow my journey: https://safelinkwatcher.com/watch/${event.params.tripId}`, // Start trip message.
+      body: trip?.status === 'sos'
+      ? `SafeLink SOS: ${name} activated an SOS alarm. See their live location: https://safelinkwatcher.com/watch/${event.params.tripId}`
+     : `SafeLink: ${name} is traveling to ${trip?.destination || 'their destination'}. Follow their journey: https://safelinkwatcher.com/watch/${event.params.tripId}`,
         from: twilioPhoneNumber,
         to: trip?.recipientPhone,
       });
@@ -117,11 +119,13 @@ export const sendTripArrivedSms = onDocumentUpdated(  // Cloud Firestore functio
     const before = event.data?.before.data();
     const after = event.data?.after.data();
     if (before?.status === 'arrived' || after?.status !== 'arrived') return;
+    const userSnap = after?.uid ? await admin.firestore().doc(`users/${after.uid}`).get() : null;
+    const name = userSnap?.data()?.name || after?.userName || 'Someone';
     const client = twilio(twilioAccountSid, twilioAuthToken.value());
     try {
       // 'Send SMS and MMS messages' Doc from Twillo
       const message = await client.messages.create({
-        body: 'SafeLink: I have successfully arrived at my destination!',
+        body: `SafeLink: ${name} has successfully arrived at their destination!`,
         from: twilioPhoneNumber,
         to: after?.recipientPhone,
       });
@@ -139,10 +143,12 @@ export const sendSosEndedSms = onDocumentUpdated(
     const before = event.data?.before.data();
     const after = event.data?.after.data();
     if (before?.status === 'sosEnded' || after?.status !== 'sosEnded') return;
+    const userSnap = after?.uid ? await admin.firestore().doc(`users/${after.uid}`).get() : null;
+const name = userSnap?.data()?.name || after?.userName || 'Someone';
     const client = twilio(twilioAccountSid, twilioAuthToken.value());
     try {
       const message = await client.messages.create({
-        body: 'SafeLink: I am safe now. The SOS alert has ended.',
+        body: `SafeLink: ${name} is safe now. The SOS alert has ended.`,
         from: twilioPhoneNumber,
         to: after?.recipientPhone,
       });
