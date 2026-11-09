@@ -7,8 +7,8 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import './Maps.css';
 import './components.css'
 import { Geolocation } from '@capacitor/geolocation';
-import { doc, collection, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../services/firebaseConfig';
+import { doc, collection, setDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { db, auth } from '../services/firebaseConfig';
 
 const SOSPage = () => {
   //History use to navigate to notifications page. 
@@ -47,6 +47,9 @@ const SOSPage = () => {
 
 // SOS Button. 
 const createSosTrip = async () => {
+  const userSnap = await getDoc(doc(db, 'users', auth.currentUser!.uid));
+const emergencyPhone = userSnap.data()?.emergencyContacts?.[0]?.phoneNumber;
+if (!emergencyPhone) alert('No emergency contact found. Please add one in your profile.');
   const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
   const ref = doc(collection(db, 'trips'));
   sosDocRef.current = ref;
@@ -57,7 +60,8 @@ const createSosTrip = async () => {
     lng: pos.coords.longitude,
     status: 'sos',
     updatedAt: Date.now(),
-    recipientPhone: '+353838181208',
+    recipientPhone: emergencyPhone,
+    userName: userSnap.data()?.name,
   });
 
   sosWatchRef.current = await Geolocation.watchPosition(
