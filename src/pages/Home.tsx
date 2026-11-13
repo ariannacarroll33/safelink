@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleMap } from '@capacitor/google-maps';
 import { Geolocation } from '@capacitor/geolocation';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import polyline from '@mapbox/polyline'; // Change string to corrdinates. 
 import './Home.css';
 import './components.css';
@@ -20,9 +21,11 @@ import { doc, collection, getDoc, setDoc, updateDoc, DocumentReference, Document
 // Capacitor Contacts plugin import
 import { Contacts } from '@capacitor-community/contacts';
 
-// There is 3 different states for this page. This declares each state and sets default. See bellow change of states.
-type TripStatus = 'notstarted' | 'tripinformation' | 'traveling' | 'arrived';
+// Using Type alias 
+type TripStatus = 'notstarted' | 'tripinformation' | 'traveling' | 'arrived'; // States of trip
+type TransportMode = 'walking' | 'transit' | 'driving' | 'bicycling'; // Moed of transport.
 
+// Start of laura code on contacts.
 interface ContactItem {
   contactId: string;
   displayName: string;
@@ -78,8 +81,10 @@ type Panel = 'favorites' | 'emergency' | 'all' | null;
 
 const normalize = (s: string) =>
 s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+// End of laura code on contacts.
 
-// Changing page when arrieve. Maths changing lat/long to meters. 
+
+// Changing page when arrieve. Maths changing lat/long to meters. Retrieved from website. ADD LINK.
 const getDistanceMeters = (
   a: { lat: number; lng: number },
   b: { lat: number; lng: number }
@@ -95,8 +100,10 @@ const getDistanceMeters = (
   return 2 * R * Math.asin(Math.sqrt(h));
 };
 
-type TransportMode = 'walking' | 'transit' | 'driving' | 'bicycling';
+const toE164 = (raw: string) =>
+  parsePhoneNumberFromString(raw, 'IE')?.number ?? raw; // Arianna change. I installed libphonenumber-js so that 
 
+// Const variables used to store values.
 const HomePage = () => {
   const history = useHistory(); //History use to navigate to notifications page.  
   const [destinationInput, setDestinationInput] = useState('');
@@ -113,7 +120,7 @@ const HomePage = () => {
   const [userName, setUserName] = useState<string>('User');
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
-  // Dropdown menu for predicted destinations.  
+  // Dropdown menu for predicted destinations. ADD LINK.
   const [predictions, setPredictions] = useState<{ description: string; place_id: string }[]>([]); 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null); 
 
@@ -134,14 +141,17 @@ const HomePage = () => {
   const recipientPhonesRef = useRef<string[]>([]); // Stores selected contacts' phone numbers
   const authUnsubRef = useRef<Unsubscribe | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const transportModeRef = useRef<TransportMode>('walking'); // Used to update the trip
   
 
-  // Polyline Refs
+  // Polyline Refs. These are used to for the blue route, to show trip.
   const polylineIdsRef = useRef<string[]>([]);
   const routePathRef = useRef<{ lat: number; lng: number }[]>([]);
   const routeIndexRef = useRef(0);
 
-  // Synchronized Profile Fetching --> basically that recoginzes the log in
+
+  // Start of Laura code on contacts.
+  // Synchronized Profile Fetching --> basically that recoginzes the log in 
   const fetchUserProfile = () => {
     // 1. Prioritize LocalStorage uploaded avatar and saved user object
     const savedAvatar = localStorage.getItem('avatarUrl');
@@ -236,24 +246,31 @@ const HomePage = () => {
       if (authUnsubRef.current) authUnsubRef.current();
     };
   }, []);
+  // End of Laura code on contacts.
 
   // When status traveling. If the map is not created, create it.  
   useEffect(() => { 
     if (tripStatus === 'traveling' && mapRef.current) {  
       const newTripRef = doc(collection(db, 'trips')); 
       tripDocRef.current = newTripRef; // Store trip for later 
+      createMap().catch((e) => console.error('createMap failed:', e));
       // If status traveling and does mapRef have something in box yetm 
       createMap(); 
     } 
 
     // Stops watching the position when the component unmounts or when tripStatus changes. 
-    return () => { 
-      if (watchIdRef.current) { 
-        Geolocation.clearWatch({ id: watchIdRef.current }); 
-        watchIdRef.current = null; 
-      } 
-    }; 
-  }, [tripStatus]); 
+return () => { 
+  if (watchIdRef.current) { 
+    Geolocation.clearWatch({ id: watchIdRef.current }); 
+    watchIdRef.current = null; 
+  } 
+
+  if (googleMapRef.current) { // destroys code each time at end. Bug which made user close app.
+  googleMapRef.current.destroy().catch((e) => console.warn('Map destroy failed:', e)); 
+   googleMapRef.current = null;
+  }
+};
+}, [tripStatus]); 
 
   // Contacts: request permission of device to access contacts and load them (making them visible)
   useEffect(() => {
@@ -371,6 +388,7 @@ const HomePage = () => {
         status: 'traveling', 
         updatedAt: Date.now(), 
         recipientPhone: recipientPhonesRef.current[0] ?? null, // changed. lost in merge. NOTE
+        uid: auth.currentUser?.uid ?? null,
         userName: userName,
       }); 
     } 
@@ -395,10 +413,12 @@ const HomePage = () => {
 
     googleMapRef.current = newMap; // Store map instance to be used later
 
-    await getDirections(
-      { lat: currentPosition.coords.latitude, lng: currentPosition.coords.longitude },
-      destinationInput
-    );
+await getDirections(
+  { lat: currentPosition.coords.latitude, lng: currentPosition.coords.longitude },
+  destinationInput,
+  transportModeRef.current // Store selected mode of transport.
+);
+
     // Blue dot 
     await newMap.enableCurrentLocation(true);
 
@@ -458,7 +478,7 @@ const HomePage = () => {
             { lat: position.coords.latitude, lng: position.coords.longitude },
             destCoordsRef.current
           );
-          if (dist < 50) {
+          if (dist < 25) { //changed from 50 to 25
             setTripStatus('arrived');
             setShowArrivedToast(true);
             if (tripDocRef.current) { 
@@ -568,22 +588,17 @@ const HomePage = () => {
 
   const contactsToDisplay = panel ? visibleContacts : filteredContacts;
   
-  const handleBeginTrip = async () => {
-    const selectedContacts = contacts.filter((c) => c.selected && c.phoneNumber);
-    recipientPhonesRef.current = selectedContacts.map((c) => {
-      const raw = c.phoneNumber!.trim();
-      const hasPlus = raw.startsWith('+');
-      const digits = raw.replace(/\D/g, '');
-      return hasPlus ? `+${digits}` : digits;
-    });
+const handleBeginTrip = async () => {
+  transportModeRef.current = transportMode ?? 'walking';
+  const selectedContacts = contacts.filter((c) => c.selected && c.phoneNumber);
+  recipientPhonesRef.current = selectedContacts.map((c) => toE164(c.phoneNumber!));
 
-    const tripId = tripDocRef.current?.id ?? Date.now().toString();
-    const generatedLink = `https://yourdomain.com/track?tripId=${tripId}`;
-    setShareableLink(generatedLink);
-    // Arianna deleted popup for 'Trigger native Web Share API dialog if supported'. Located in old files> Laura deleted code.
-    setShowToast(true);
-    setTripStatus('traveling');
-  };
+  const tripId = tripDocRef.current?.id ?? Date.now().toString();
+  const generatedLink = `https://yourdomain.com/track?tripId=${tripId}`;
+  setShareableLink(generatedLink);
+  setShowToast(true);
+  setTripStatus('traveling');
+};
 
 
   // Arrived state setup
@@ -618,16 +633,19 @@ const HomePage = () => {
 
   // Arianna code again. 
   // Getting directions code. 
-  const getDirections = async (
-    origin: { lat: number; lng: number },
-    destination: string
-  ) => {
-    const apiKey = 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI';
-    const originStr = `${origin.lat},${origin.lng}`;
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${encodeURIComponent(destination)}&key=${apiKey}`;
+const getDirections = async (
+  origin: { lat: number; lng: number },
+  destination: string,
+  mode: TransportMode
+) => {
+  const apiKey = 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI';
+  const originStr = `${origin.lat},${origin.lng}`;
+  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${encodeURIComponent(destination)}&mode=${mode}&key=${apiKey}`;
 
-    const response = await fetch(url);
-    const data = await response.json(); //Retrieving the scrambled 
+  console.log('Directions mode:', mode);
+  const response = await fetch(url);
+  const data = await response.json();
+  console.log('Directions status:', data.status, 'ETA:', data.routes?.[0]?.legs?.[0]?.duration?.text);
 
     if (!data.routes || data.routes.length === 0) {
       console.error('No route found', data);
@@ -955,6 +973,13 @@ const HomePage = () => {
                 style={{ display: 'block', width: '100%', height: '400px' }}
               ></capacitor-google-map>
             </div>
+
+                {eta && (
+      <p style={{ textAlign: 'center', fontWeight: 600, color: '#633A0E', margin: '0 16px 8px' }}>
+        {transportMode === 'transit' ? 'Public transport' : transportMode ?? 'walking'} ETA: {eta}
+      </p>
+    )}
+
 
             {shareableLink && (
               <div style={{ padding: '0 16px', textAlign: 'center' }}>
