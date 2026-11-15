@@ -125,7 +125,7 @@ export const sendTripArrivedSms = onDocumentUpdated(  // Cloud Firestore functio
     try {
       // 'Send SMS and MMS messages' Doc from Twillo
       const message = await client.messages.create({
-        body: `SafeLink: ${name} has successfully arrived at their destination!`,
+        body: `SafeLink: ${name} has successfully arrived at their destination! You can no longer see their location.`,
         from: twilioPhoneNumber,
         to: after?.recipientPhone,
       });
@@ -148,7 +148,7 @@ const name = userSnap?.data()?.name || after?.userName || 'Someone';
     const client = twilio(twilioAccountSid, twilioAuthToken.value());
     try {
       const message = await client.messages.create({
-        body: `SafeLink: ${name} is safe now. The SOS alert has ended.`,
+        body: `SafeLink: ${name} is safe now. You can no longer see their location.`,
         from: twilioPhoneNumber,
         to: after?.recipientPhone,
       });

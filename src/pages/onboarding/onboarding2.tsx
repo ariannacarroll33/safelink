@@ -34,7 +34,7 @@ const Onboarding2: React.FC = () => {
               width={350}
               height={350}
             />
-            <h2 style={titleStyle}>Select contact and destination</h2>
+            <h2 style={titleStyle}>Text sent with link to see your location</h2>
           </div>
 
 
@@ -42,7 +42,6 @@ const Onboarding2: React.FC = () => {
           <div style={dotsContainerStyle}>
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
             <span style={{ ...dotStyle, backgroundColor: '#E6A937' }} />
-            <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
           </div>
 

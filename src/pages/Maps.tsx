@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon } from '@ionic/react';
+import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonButtons, IonButton, IonIcon, IonToast } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { notificationsOutline } from 'ionicons/icons';
 import alertNoise from '../assets/mixkit-facility-alarm-sound-999.wav';
@@ -20,6 +20,7 @@ const SOSPage = () => {
   const [isAlarmActive, setIsAlarmActive] = useState<boolean>(false);
   const sosDocRef = useRef<ReturnType<typeof doc> | null>(null); // SOS Button
   const sosWatchRef = useRef<string | null>(null); // Updating location
+  const [toastMessage, setToastMessage] = useState(''); // Toasts
 
   // SOS ALARM
   function startAlarm() {
@@ -99,12 +100,12 @@ const toggleAlarm = () => {
     stopAlarmSound();
     setIsAlarmActive(false);
     endSosTrip();
-    console.log("Alarm Stopped!");
+    setToastMessage('Location sharing has ended. Your emergency contact has been told you are safe.')
   } else {
     startAlarm();
     setIsAlarmActive(true);
     createSosTrip();
-    console.log("Alarm Started!");
+    setToastMessage('Message sent to your emergency contact. Your location is being shared.');
   }
 };
 
@@ -138,6 +139,15 @@ const toggleAlarm = () => {
     </IonButton>
     </div>
   </div>
+
+  <IonToast
+  position="bottom"
+  isOpen={toastMessage !== ''}
+  message={toastMessage}
+  onDidDismiss={() => setToastMessage('')}
+  duration={5000}
+/>
+
 </IonContent>
     </IonPage>
   );

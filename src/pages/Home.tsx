@@ -4,7 +4,10 @@ import { GoogleMap } from '@capacitor/google-maps';
 import { Geolocation } from '@capacitor/geolocation';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import polyline from '@mapbox/polyline'; // Change string to corrdinates. 
+import { registerPlugin } from '@capacitor/core';
+import type { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation';
 import './Home.css';
+import { titleStyle } from './onboarding/onboarding1'; // For arrived font style
 import './components.css';
 import { IonContent, IonHeader, IonPage, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonInput, IonCheckbox, IonList, IonItem, IonLabel, IonAvatar, useIonViewWillEnter, IonToast, IonAlert } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
@@ -25,7 +28,8 @@ import { Contacts } from '@capacitor-community/contacts';
 type TripStatus = 'notstarted' | 'tripinformation' | 'confirm' | 'traveling' | 'arrived'; // States of trip
 type TransportMode = 'walking' | 'transit' | 'driving' | 'bicycling'; // Moed of transport.
 
-// Start of laura code on contacts.
+//START OF LAURA CODE
+// Code on contacts.
 interface ContactItem {
   contactId: string;
   displayName: string;
@@ -35,7 +39,7 @@ interface ContactItem {
   isEmergency?: boolean;  
 }
 
-// Same shape as YourLink's EmergencyContact
+// YourLink's EmergencyContact
 interface YourLinkContact {
   contactId: string;
   displayName: string;
@@ -81,10 +85,10 @@ type Panel = 'favorites' | 'emergency' | 'all' | null;
 
 const normalize = (s: string) =>
 s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-// End of laura code on contacts.
+// END OF LAURA CODE.
 
 
-// Changing page when arrieve. Maths changing lat/long to meters. Retrieved from website. ADD LINK.
+// Changing page when arrieve. Maths changing lat/long to meters. Retrieved from https://www.geeksforgeeks.org/dsa/haversine-formula-to-find-distance-between-two-points-on-a-sphere/
 const getDistanceMeters = (
   a: { lat: number; lng: number },
   b: { lat: number; lng: number }
@@ -101,7 +105,7 @@ const getDistanceMeters = (
 };
 
 const toE164 = (raw: string) =>
-  parsePhoneNumberFromString(raw, 'IE')?.number ?? raw; // Arianna change. I installed libphonenumber-js so that 
+  parsePhoneNumberFromString(raw, 'IE')?.number ?? raw; // Arianna chaned this. I installed libphonenumber-js so that contacts work in Ireland.
 
 // Labels shown on the confirmation screen
 const TRANSPORT_LABELS: Record<TransportMode, string> = {
@@ -115,18 +119,18 @@ const CONFIRM_SECONDS = 15; // time before the trip starts automatically
 // Const variables used to store values.
 const HomePage = () => {
   const history = useHistory(); //History use to navigate to notifications page.  
-  const [destinationInput, setDestinationInput] = useState('');
-  const [tripStatus, setTripStatus] = useState<TripStatus>('notstarted'); // Default to 'notstarted'  
-  const [eta, setEta] = useState('');
-  const [tripLink, setTripLink] = useState('');
+  const [destinationInput, setDestinationInput] = useState(''); // Destination input state.
+  const [tripStatus, setTripStatus] = useState<TripStatus>('notstarted'); // Starts page on the 'notstarted' state.
+  const [eta, setEta] = useState(''); // Estimated time of arrival.
+  const [tripLink, setTripLink] = useState(''); // Link to the trip details.
   const [transportMode, setTransportMode] = useState<TransportMode | null>(null); // Nothing selected for public transport by deafult.
   const [showToast, setShowToast] = useState(false); // Toast popup for travelling and arrieved
-  const [showArrivedToast, setShowArrivedToast] = useState(false);
+  const [showArrivedToast, setShowArrivedToast] = useState(false); // Toasts used on travel / arrival
   const [showManualAlert, setShowManualAlert] = useState(false);
-  const contactsLoadedRef = useRef(false); 
+  const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation'); // Watch position. This plugin works with iOS native background location.
+  const contactsLoadedRef = useRef(false);
   const [countdown, setCountdown] = useState(CONFIRM_SECONDS);
   const handleBeginTripRef = useRef<() => void>(() => {}); // always points to the latest handleBeginTrip
-  
 
   // User Profile State
   const [userName, setUserName] = useState<string>('User');
@@ -136,8 +140,7 @@ const HomePage = () => {
   const [predictions, setPredictions] = useState<{ description: string; place_id: string }[]>([]); 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null); 
 
-  // Track if destination is selected to show contacts step
-  const [isDestinationSelected, setIsDestinationSelected] = useState(false);
+  const [isDestinationSelected, setIsDestinationSelected] = useState(false); // Track if destination is selected to show contacts step
   
   // Contacts state management & Search Filter
   const [contacts, setContacts] = useState<ContactItem[]>([]);
@@ -162,7 +165,7 @@ const HomePage = () => {
   const routeIndexRef = useRef(0);
 
 
-  // Start of Laura code on contacts.
+  // START LAURA CODE
   // Synchronized Profile Fetching --> basically that recoginzes the log in 
   const fetchUserProfile = () => {
     // 1. Prioritize LocalStorage uploaded avatar and saved user object
@@ -258,7 +261,7 @@ const HomePage = () => {
       if (authUnsubRef.current) authUnsubRef.current();
     };
   }, []);
-  // End of Laura code on contacts.
+  // END LAURA CODE
 
   // When status traveling. If the map is not created, create it.  
   useEffect(() => { 
@@ -269,11 +272,11 @@ const HomePage = () => {
     } 
 
     // Stops watching the position when the component unmounts or when tripStatus changes. 
-    return () => { 
-      if (watchIdRef.current) { 
-        Geolocation.clearWatch({ id: watchIdRef.current }); 
-        watchIdRef.current = null; 
-      } 
+return () => { 
+  if (watchIdRef.current) { 
+    BackgroundGeolocation.removeWatcher({ id: watchIdRef.current });
+    watchIdRef.current = null; 
+  } 
 
       if (googleMapRef.current) { // destroys code each time at end. Bug which made user close app.
         googleMapRef.current.destroy().catch((e) => console.warn('Map destroy failed:', e)); 
@@ -361,7 +364,8 @@ const HomePage = () => {
     }
   };
 
-  // NEW — fetch predicted destinations from Google Places Autocomplete
+
+  // Fetch predicted destinations from Google Places Autocomplete
   const fetchPredictions = async (input: string) => {
     if (!input.trim()) {
       setPredictions([]);
@@ -374,7 +378,7 @@ const HomePage = () => {
     setPredictions(data.status === 'OK' ? data.predictions : []);
   };
 
-  // NEW — debounce so we don't fetch on every keystroke 
+  // Debounce so we don't fetch on every keystroke 
   const handleDestinationChange = (value: string) => {
     setDestinationInput(value);
     setIsDestinationSelected(false);
@@ -444,35 +448,32 @@ await getDirections(
     // Blue dot 
     await newMap.enableCurrentLocation(true);
 
-    // NEW Tracking throughout; Not just showing position once. 
-    const watchId = await Geolocation.watchPosition(
-      {
-        enableHighAccuracy: true,
-        maximumAge: 1000,
-      },
-      (position, err) => {
-        if (err) { console.error('watchPosition error', err); return; }
-        if (!position || !googleMapRef.current) return;
+    // Tracking throughout; Not just showing position once. 
+const watchId = await BackgroundGeolocation.addWatcher(
+  { backgroundMessage: 'Trip in progress' },
+  (location, err) => {
+    if (err) { console.error('watcher error', err); return; }
+    if (!location || !googleMapRef.current) return;
 
         // Update Firestore with new position
         if (tripDocRef.current) {
           updateDoc(tripDocRef.current, {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
+            lat: location.latitude,
+            lng: location.longitude,
             updatedAt: Date.now(),
           });
         }
 
         googleMapRef.current.setCamera({
           coordinate: {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
+            lat: location.latitude,
+            lng: location.longitude,
           },
           zoom: 18,
           animate: true,
         });
 
-        const currentPos = { lat: position.coords.latitude, lng: position.coords.longitude };
+        const currentPos = { lat: location.latitude, lng: location.longitude };
         const path = routePathRef.current;
         let idx = routeIndexRef.current;
 
@@ -494,10 +495,10 @@ await getDirections(
           })();
         }
 
-        // NEW — check if user has reached destination 
+        // Check if user has reached destination 
         if (destCoordsRef.current) {
           const dist = getDistanceMeters(
-            { lat: position.coords.latitude, lng: position.coords.longitude },
+            { lat: location.latitude, lng: location.longitude },
             destCoordsRef.current
           );
           if (dist < 25) { //changed from 50 to 25
@@ -659,8 +660,7 @@ const handleCancelConfirm = () => {
   // Arrived state setup
   const handleEndTrip = async () => {
     if (watchIdRef.current) {
-      Geolocation.clearWatch({ id: watchIdRef.current });
-      console.log('Recipients:', recipientPhonesRef.current);
+      BackgroundGeolocation.removeWatcher({ id: watchIdRef.current });
       watchIdRef.current = null;
     }
     if (tripDocRef.current) {
@@ -720,6 +720,7 @@ const getDirections = async (
       updateDoc(tripDocRef.current, { 
         destLat: endLocation.lat, 
         destLng: endLocation.lng, 
+        transportMode: mode, // Storing mode of transport.
         recipientPhone: recipientPhonesRef.current[0] ?? null, // Changed. Lost in merge.
       }); 
     } 
@@ -987,9 +988,6 @@ const getDirections = async (
                   })}
                 </div>
               </div>
-              <span className="mini-text" style={{ color: 'var(--grey-600)', display: 'block', marginTop: 8 }}>
-                If you are more than 5 minutes late, a second text will be sent to your contact asking them to check in
-              </span>
             </div>
 
             <IonButton
@@ -1108,12 +1106,26 @@ const getDirections = async (
               ></capacitor-google-map>
             </div>
 
-                {eta && (
-      <p style={{ textAlign: 'center', fontWeight: 600, color: '#633A0E', margin: '0 16px 8px' }}>
-        {transportMode === 'transit' ? 'Public transport' : transportMode ?? 'walking'} ETA: {eta}
-      </p>
-    )}
+            {eta && (
+              <p style={{ textAlign: 'center', fontWeight: 600, color: '#633A0E', margin: '0 16px 8px' }}>
+                {transportMode === 'transit' ? 'Public transport' : transportMode ?? 'walking'} ETA: {eta}
+              </p>
+            )}
 
+            <span
+              className="body-medium"
+              style={{ color: 'var(--grey-600)', display: 'block', margin: '8px 16px', textAlign: 'center' }}
+            >
+              Trip will be automatically ended when you arrive at your destination.
+            </span>
+
+            <IonButton
+              className="large-button"
+              onClick={handleEndTrip}
+              style={{ margin: '16px' }}
+            >
+              End Trip
+            </IonButton>
 
             {shareableLink && (
               <div style={{ padding: '0 16px', textAlign: 'center' }}>
@@ -1123,14 +1135,6 @@ const getDirections = async (
                 </code>
               </div>
             )}
-
-            <IonButton
-              className="large-button"
-              onClick={handleEndTrip}
-              style={{ margin: '16px' }}
-            >
-              End Trip
-            </IonButton>
           </div>
         )}
 
@@ -1154,7 +1158,7 @@ const getDirections = async (
                 height={350}
               />
             </div>
-            <p>You've arrived!</p>
+            <h2 style={titleStyle}>You've arrived!</h2>
             <IonButton
               className="large-button"
               onClick={() => {
@@ -1176,20 +1180,20 @@ const getDirections = async (
       </IonContent>
 
       <IonToast //Traveling toast popup
-        position="top"
+        position="bottom"
         isOpen={showToast}
         header={`Text Sent To ${selectedContactName}`}
-        message={`I am traveling to ${destinationInput}. See live location here: https://safelink.com`}
+        message={`They can follow your trip to ${destinationInput} using the link we sent.`}
         onDidDismiss={() => setShowToast(false)}
         duration={5000}
         icon={toastIcon}
       ></IonToast>
 
       <IonToast //Arrived toast popup
-        position="top"
+        position="bottom"
         isOpen={showArrivedToast}
         header={`Text sent to ${selectedContactName}`}
-        message={`I have arrived at ${destinationInput}`}
+        message={`You have arrived at ${destinationInput}. Link no longer active.`}
         onDidDismiss={() => setShowArrivedToast(false)}
         duration={5000}
         icon={toastIcon}

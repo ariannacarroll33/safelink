@@ -35,7 +35,7 @@ const Onboarding3: React.FC = () => {
               width={350}
               height={350}
             />
-            <h2 style={titleStyle}>Alerted when arrive home and location sharing ended</h2>
+            <h2 style={titleStyle}>Text sent when you arrive home</h2>
           </div>
 
           {/* Indicador de Páginas (Punto 3 Activo) */}
@@ -48,7 +48,7 @@ const Onboarding3: React.FC = () => {
           {/* Bandeja inferior dorada idéntica a la foto */}
           <div style={bottomContainerStyle}>
             <button 
-              onClick={() => history.push('/enterPasscode')} 
+              onClick={() => history.push('/emergencyContact')}
               style={actionButtonStyle}
               type="button"
             >
