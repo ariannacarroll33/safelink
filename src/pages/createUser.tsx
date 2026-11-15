@@ -267,7 +267,7 @@ const CreateUser: React.FC = () => {
 
         <form onSubmit={handleCreateUser} style={{ padding: '0 10px', paddingBottom: '30px' }}>
           <div style={{ marginBottom: '14px' }}>
-            <div style={labelStyle}>Your Name <span style={{ color: '#E6A937' }}>*</span></div>
+            <div style={labelStyle}>First Name <span style={{ color: '#E6A937' }}>*</span></div>
             <div style={getBoxStyle('name')}>
               <IonItem lines="none" style={itemStyle}>
                 <IonIcon slot="start" icon={personAddOutline} style={{ color: '#999' }} />

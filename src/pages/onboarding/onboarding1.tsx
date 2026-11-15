@@ -69,7 +69,7 @@ export const contentStyle: React.CSSProperties = { display: 'flex', flexDirectio
 export const iconContainerStyle: React.CSSProperties = { marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '150px' };
 
 // bigger texts
-export const titleStyle: React.CSSProperties = { color: '#633A0E', fontSize: '26px', fontWeight: '800', marginBottom: '16px', lineHeight: '1.2' };
+export const titleStyle: React.CSSProperties = { color: '#633A0E', fontSize: '26px', fontWeight: '800', marginBottom: '16px', lineHeight: '1.2', textAlign: 'center' };
 export const descriptionStyle: React.CSSProperties = { color: '#84623D', fontSize: '15.5px', lineHeight: '1.6', maxWidth: '330px', margin: '0 auto' };
 
 export const dotsContainerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'center', gap: '12px', margin: '20px 0' };
