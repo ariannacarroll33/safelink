@@ -22,7 +22,7 @@ import { doc, collection, getDoc, setDoc, updateDoc, DocumentReference, Document
 import { Contacts } from '@capacitor-community/contacts';
 
 // Using Type alias 
-type TripStatus = 'notstarted' | 'tripinformation' | 'traveling' | 'arrived'; // States of trip
+type TripStatus = 'notstarted' | 'tripinformation' | 'confirm' | 'traveling' | 'arrived'; // States of trip
 type TransportMode = 'walking' | 'transit' | 'driving' | 'bicycling'; // Moed of transport.
 
 // Start of laura code on contacts.
@@ -103,6 +103,15 @@ const getDistanceMeters = (
 const toE164 = (raw: string) =>
   parsePhoneNumberFromString(raw, 'IE')?.number ?? raw; // Arianna change. I installed libphonenumber-js so that 
 
+// Labels shown on the confirmation screen
+const TRANSPORT_LABELS: Record<TransportMode, string> = {
+  walking: 'Walk',
+  transit: 'Public transport',
+  driving: 'Drive',
+  bicycling: 'Cycle',
+};
+
+const CONFIRM_SECONDS = 15; // time before the trip starts automatically
 // Const variables used to store values.
 const HomePage = () => {
   const history = useHistory(); //History use to navigate to notifications page.  
@@ -114,6 +123,9 @@ const HomePage = () => {
   const [showToast, setShowToast] = useState(false); // Toast popup for travelling and arrieved
   const [showArrivedToast, setShowArrivedToast] = useState(false);
   const [showManualAlert, setShowManualAlert] = useState(false);
+  const contactsLoadedRef = useRef(false); 
+  const [countdown, setCountdown] = useState(CONFIRM_SECONDS);
+  const handleBeginTripRef = useRef<() => void>(() => {}); // always points to the latest handleBeginTrip
   
 
   // User Profile State
@@ -254,23 +266,21 @@ const HomePage = () => {
       const newTripRef = doc(collection(db, 'trips')); 
       tripDocRef.current = newTripRef; // Store trip for later 
       createMap().catch((e) => console.error('createMap failed:', e));
-      // If status traveling and does mapRef have something in box yetm 
-      createMap(); 
     } 
 
     // Stops watching the position when the component unmounts or when tripStatus changes. 
-return () => { 
-  if (watchIdRef.current) { 
-    Geolocation.clearWatch({ id: watchIdRef.current }); 
-    watchIdRef.current = null; 
-  } 
+    return () => { 
+      if (watchIdRef.current) { 
+        Geolocation.clearWatch({ id: watchIdRef.current }); 
+        watchIdRef.current = null; 
+      } 
 
-  if (googleMapRef.current) { // destroys code each time at end. Bug which made user close app.
-  googleMapRef.current.destroy().catch((e) => console.warn('Map destroy failed:', e)); 
-   googleMapRef.current = null;
-  }
-};
-}, [tripStatus]); 
+      if (googleMapRef.current) { // destroys code each time at end. Bug which made user close app.
+        googleMapRef.current.destroy().catch((e) => console.warn('Map destroy failed:', e)); 
+        googleMapRef.current = null;
+      }
+    };
+  }, [tripStatus]);
 
   // Contacts: request permission of device to access contacts and load them (making them visible)
   useEffect(() => {
@@ -281,6 +291,7 @@ return () => {
 
   // Load device contacts automatically as soon as a destination is selected
   // Request contact permissions and fetch device contacts 
+  // Load device contacts automatically as soon as a destination is selected
   const loadDeviceContacts = async () => {
     try {
       let merged: ContactItem[] = [];
@@ -333,12 +344,22 @@ return () => {
         }
       });
 
-      setContacts(merged);
+      // CHANGE: Preserve previously added manual contacts so they aren't wiped out by device sync
+      setContacts((prev) => {
+        const manualContacts = prev.filter((c) => c.contactId.startsWith('manual_'));
+        const combined = [...merged];
+        manualContacts.forEach((manual) => {
+          if (!combined.some((c) => phoneKey(c.phoneNumber) === phoneKey(manual.phoneNumber))) {
+            combined.push(manual);
+          }
+        });
+        return combined;
+      });
+
     } catch (err) {
       console.warn('Error loading contacts:', err);
     }
   };
-
 
   // NEW — fetch predicted destinations from Google Places Autocomplete
   const fetchPredictions = async (input: string) => {
@@ -388,6 +409,7 @@ return () => {
         status: 'traveling', 
         updatedAt: Date.now(), 
         recipientPhone: recipientPhonesRef.current[0] ?? null, // changed. lost in merge. NOTE
+        recipientPhones: recipientPhonesRef.current,
         uid: auth.currentUser?.uid ?? null,
         userName: userName,
       }); 
@@ -515,38 +537,42 @@ await getDirections(
   };
 
   const handleAddManualContact = (name?: string, phone?: string) => {
-    const cleanName = (name ?? '').trim();
-    const cleanPhone = (phone ?? '').trim();
+  const cleanName = (name ?? '').trim();
 
-    // Devolver false mantiene el alert abierto si falta algo
-    if (!cleanName || cleanPhone.replace(/\D/g, '').length < 6) return false;
+  // CHANGE: Added 'IE' (or 'ES') as default country so local numbers without '+' don't fail validation
+  const parsed = parsePhoneNumberFromString((phone ?? '').trim(), 'IE'); 
 
-    const key = phoneKey(cleanPhone);
-    const existing = contacts.find((c) => phoneKey(c.phoneNumber) === key);
+  if (!cleanName || !parsed?.isValid()) {
+    console.warn('Invalid phone number entered manually');
+    return false;
+  }
+  const cleanPhone = parsed.number; // Now it correctly formats to E.164 (e.g. +353...)
 
-    if (existing) {
-      // exists?--> just select them
-      setContacts((prev) =>
-        prev.map((c) => (c.contactId === existing.contactId ? { ...c, selected: true } : c))
-      );
-    } else {
-      setContacts((prev) => [
-        ...prev,
-        {
-          contactId: `manual_${Date.now()}`,
-          displayName: cleanName,
-          phoneNumber: cleanPhone,
-          selected: true,
-          isFavorite: false,
-          isEmergency: false,
-        },
-      ]);
-    }
+  const key = phoneKey(cleanPhone);
+  const existing = contacts.find((c) => phoneKey(c.phoneNumber) === key);
 
-    // Open "All contacts" to see change 
-    setPanel('all');
-    setSearchQuery('');
-  };
+  if (existing) {
+    setContacts((prev) =>
+      prev.map((c) => (c.contactId === existing.contactId ? { ...c, selected: true } : c))
+    );
+  } else {
+    setContacts((prev) => [
+      ...prev,
+      {
+        contactId: `manual_${Date.now()}`,
+        displayName: cleanName,
+        phoneNumber: cleanPhone,
+        selected: true,
+        isFavorite: false,
+        isEmergency: false,
+      },
+    ]);
+  }
+
+  setPanel('all');
+  setSearchQuery('');
+  return true; // CHANGE: return true so the alert knows it succeeded
+};
 
   const toggleSelected = (contactId: string) => {
     setContacts((prev) =>
@@ -600,11 +626,41 @@ const handleBeginTrip = async () => {
   setTripStatus('traveling');
 };
 
+// Keep the ref pointing to the latest version of handleBeginTrip
+handleBeginTripRef.current = handleBeginTrip;
+
+// Go to the confirmation screen (called by the "Begin" button)
+const handleOpenConfirm = () => {
+  setCountdown(CONFIRM_SECONDS);
+  setTripStatus('confirm');
+};
+
+// Cancel: go back to the trip form (destination and contacts are kept)
+const handleCancelConfirm = () => {
+  setTripStatus('tripinformation');
+};
+
+// Tick every second while the confirmation screen is open
+  useEffect(() => {
+    if (tripStatus !== 'confirm') return;
+    const id = setInterval(() => {
+      setCountdown((prev) => Math.max(prev - 1, 0));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [tripStatus]);
+
+  // When it reaches 0, start the trip automatically
+  useEffect(() => {
+    if (tripStatus === 'confirm' && countdown === 0) {
+      handleBeginTripRef.current();
+    }
+  }, [countdown, tripStatus]);
 
   // Arrived state setup
   const handleEndTrip = async () => {
     if (watchIdRef.current) {
       Geolocation.clearWatch({ id: watchIdRef.current });
+      console.log('Recipients:', recipientPhonesRef.current);
       watchIdRef.current = null;
     }
     if (tripDocRef.current) {
@@ -939,7 +995,7 @@ const getDirections = async (
             <IonButton
               className="large-button"
               disabled={!isDestinationSelected || !contacts.some((c) => c.selected)} // Destination greyed out until valid selection
-              onClick={handleBeginTrip}
+              onClick={handleOpenConfirm}
               style={{ marginTop: 20 }}
             >
               Begin
@@ -954,7 +1010,85 @@ const getDirections = async (
             </IonButton>
           </div>
         )}
+{/* CHANGE OF STATE: confirmation summary */}
+{tripStatus === 'confirm' && (
+  <div style={{ marginTop: 24, marginRight: 16, marginLeft: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <h2 style={{ color: '#633A0E', fontWeight: 800, fontSize: 20, margin: '0 0 4px', textAlign: 'center' }}>
+      Confirm your trip
+    </h2>
+    <p style={{ color: 'var(--grey-600)', fontSize: 13, margin: '0 0 16px', textAlign: 'center' }}>
+      Check the details below. The trip will start automatically when the timer ends.
+    </p>
 
+    {/* Destination */}
+    <div className="box-container" style={{ width: '100%' }}>
+      <div className="box-container-text">
+        <span className="mini-text" style={{ color: 'var(--yellow-700)' }}>Destination</span>
+        <span className="field-label h5-medium" style={{ color: 'var(--yellow-700)' }}>
+          Where you are going
+        </span>
+      </div>
+      <div className="field-box" style={{ padding: '12px 14px', color: '#633A0E', fontWeight: 600 }}>
+        {destinationInput}
+      </div>
+    </div>
+
+    {/* Contacts */}
+    <div className="box-container" style={{ marginTop: 20, width: '100%' }}>
+      <div className="box-container-text">
+        <span className="mini-text" style={{ color: 'var(--yellow-700)' }}>
+          {selectedList.length} selected
+        </span>
+        <span className="field-label h5-medium" style={{ color: 'var(--yellow-700)' }}>
+          Sharing route with
+        </span>
+      </div>
+      <div className="field-box" style={{ padding: '8px 14px' }}>
+        {selectedList.map((c) => (
+          <div key={c.contactId} style={{ padding: '6px 0', display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: '#7A4510' }}>{c.displayName}</span>
+            <span style={{ fontSize: 12, color: '#9A7B55' }}>{c.phoneNumber}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Transport */}
+    <div className="box-container" style={{ marginTop: 20, width: '100%' }}>
+      <div className="box-container-text">
+        <span className="mini-text" style={{ color: 'var(--yellow-700)' }}>
+          {transportMode ? 'Selected' : 'Default'}
+        </span>
+        <span className="field-label h5-medium" style={{ color: 'var(--yellow-700)' }}>
+          Mode of transport
+        </span>
+      </div>
+      <div className="field-box" style={{ padding: '12px 14px', color: '#633A0E', fontWeight: 600 }}>
+        {TRANSPORT_LABELS[transportMode ?? 'walking']}
+      </div>
+    </div>
+
+    {/* Timer bar */}
+    <div style={{ width: '100%', height: 6, borderRadius: 3, background: '#F1E4C3', marginTop: 24, overflow: 'hidden' }}>
+      <div
+        style={{
+          width: `${(countdown / CONFIRM_SECONDS) * 100}%`,
+          height: '100%',
+          background: 'var(--yellow-400)',
+          transition: 'width 1s linear',
+        }}
+      />
+    </div>
+
+    <IonButton className="large-button" onClick={() => handleBeginTripRef.current()} style={{ marginTop: 16 }}>
+      Confirm ({countdown}s)
+    </IonButton>
+
+    <IonButton className="large-button-outline" onClick={handleCancelConfirm} style={{ marginTop: 12 }}>
+      Cancel
+    </IonButton>
+  </div>
+)}
         {/* CHANGE OF STATE */}
         {tripStatus === 'traveling' && (
           <div>
