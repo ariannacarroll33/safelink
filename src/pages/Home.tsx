@@ -856,7 +856,7 @@ const getDirections = async (
                 header="Add Contact"
                 inputs={[
                   { name: 'contactName', type: 'text', placeholder: 'Name (e.g. John Doe)' },
-                  { name: 'contactPhone', type: 'tel', placeholder: 'Phone (+34 600 000 000)' },
+                  { name: 'contactPhone', type: 'tel', placeholder: 'Phone (978181290)' },
                 ]}
                 buttons={[
                   { text: 'Cancel', role: 'cancel' },
