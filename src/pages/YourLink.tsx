@@ -202,7 +202,7 @@ const YourLinkPage = () => {
 
   const openDeviceContactsPicker = async () => {
     if (!Capacitor.isNativePlatform()) {
-      setToastMessage('Esta función solo está disponible en la app móvil');
+      setToastMessage('This feature is only available in the mobile app.');
       setShowToast(true);
       return;
     }
@@ -215,7 +215,7 @@ const YourLinkPage = () => {
         perm = await Contacts.requestPermissions();
       }
       if (perm.contacts !== 'granted') {
-        setToastMessage('Permiso de contactos denegado. Actívalo en los Ajustes del móvil');
+        setToastMessage('Contacts Permission Denied. Enable it in your phone settings!');
         setShowToast(true);
         return;
       }
@@ -234,7 +234,7 @@ const YourLinkPage = () => {
         .sort((a, b) => a.name.localeCompare(b.name));
 
       if (list.length === 0) {
-        setToastMessage('No se encontraron contactos con teléfono');
+        setToastMessage('No contacts with a phone number were found.');
         setShowToast(true);
         return;
       }
@@ -245,7 +245,7 @@ const YourLinkPage = () => {
       setShowPickerModal(true);
     } catch (e) {
       console.error('Error reading device contacts:', e);
-      setToastMessage('No se pudieron leer los contactos');
+      setToastMessage('Could not read contacts!');
       setShowToast(true);
     } finally {
       setLoadingContacts(false);
@@ -261,7 +261,7 @@ const YourLinkPage = () => {
   };
 
   const handleImportSelected = async () => {
-    // Evita duplicados comparando por teléfono
+    // prevents from having doubled phones 
     const existingPhones = new Set(emergencyContacts.map(c => normalizePhone(c.phoneNumber)));
 
     const toAdd: EmergencyContact[] = deviceContacts
@@ -275,7 +275,7 @@ const YourLinkPage = () => {
       }));
 
     if (toAdd.length === 0) {
-      setToastMessage('Esos contactos ya estaban en tu lista');
+      setToastMessage('Those contacts are already on your list!');
       setShowToast(true);
       setShowPickerModal(false);
       return;
@@ -283,7 +283,7 @@ const YourLinkPage = () => {
 
     await saveContactsToStorageAndFirebase([...emergencyContacts, ...toAdd]);
     setShowPickerModal(false);
-    setToastMessage(`${toAdd.length} contacto(s) añadido(s)`);
+    setToastMessage(`${toAdd.length} contact(s) added`);
     setShowToast(true);
   };
 
@@ -346,14 +346,12 @@ const YourLinkPage = () => {
       <IonHeader className="ion-no-border">
         <IonToolbar className="header-toolbar">
           <IonButtons slot="start">
-            <IonAvatar className="header-avatar">
-              {profileImage ? (
-                <img src={profileImage} alt={userName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <div className="empty-avatar-circle header-empty-circle">
-                  <IonIcon icon={personOutline} />
-                </div>
-              )}
+            <IonAvatar className="header-avatar" style={{width: '36px', height: '36px', minWidth: '36px', marginLeft: '12px', overflow: 'hidden', flexShrink: 0,}}>
+            {profileImage ? (
+              <img src={profileImage} alt={userName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}/>) : (
+              <div className="empty-avatar-circle header-empty-circle" style={{width: '100%', height: '100%', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', }}>
+                <IonIcon icon={personOutline} style={{ fontSize: '18px' }} />
+              </div> )}
             </IonAvatar>
           </IonButtons>
           <IonTitle className="ion-text-center header-title">SafeLink</IonTitle>
@@ -366,20 +364,6 @@ const YourLinkPage = () => {
       </IonHeader>
 
       <IonContent className="yourlink-content">
-        <div className="location-pill-container">
-          <div className={`location-pill ${isLive ? 'pill-active' : 'pill-paused'}`}>
-            <IonIcon icon={navigateOutline} className="location-icon" />
-            <div className="location-info">
-              <span className="location-label">{isLive ? 'Current location' : 'Last known location'}</span>
-              <span className="location-address">{isLive ? userLocation : lastKnownLocation || 'Sharing Paused'}</span>
-            </div>
-            <button type="button" className={`live-badge-btn ${isLive ? 'badge-live' : 'badge-paused'}`} onClick={toggleLiveStatus}>
-              <span className={`live-dot ${isLive ? 'dot-green' : 'dot-red'}`}></span>
-              {isLive ? 'Live' : 'Off'}
-            </button>
-          </div>
-        </div>
-
         <div className="profile-hero-section">
           <div className="avatar-wrapper" onClick={() => fileInputRef.current?.click()}>
             {profileImage ? (
