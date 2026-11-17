@@ -267,7 +267,7 @@ const HomePage = () => {
   // When status traveling. If the map is not created, create it.  
   useEffect(() => { 
     if (tripStatus === 'traveling' && mapRef.current) {  
-      const newTripRef = doc(collection(db, 'trips')); 
+      const newTripRef = doc(collection(db, 'trips'));  // New trip document in Firestore
       tripDocRef.current = newTripRef; // Store trip for later 
       createMap().catch((e) => console.error('createMap failed:', e));
     } 
@@ -275,11 +275,11 @@ const HomePage = () => {
     // Stops watching the position when the component unmounts or when tripStatus changes. 
 return () => { 
   if (watchIdRef.current) { 
-    BackgroundGeolocation.removeWatcher({ id: watchIdRef.current });
+    BackgroundGeolocation.removeWatcher({ id: watchIdRef.current }); 
     watchIdRef.current = null; 
   } 
 
-      if (googleMapRef.current) { // destroys code each time at end. Bug which made user close app.
+      if (googleMapRef.current) { // Destroys code each time at end. Bug which made user close app.
         googleMapRef.current.destroy().catch((e) => console.warn('Map destroy failed:', e)); 
         googleMapRef.current = null;
       }
@@ -293,9 +293,9 @@ return () => {
     }
   }, [isDestinationSelected]);
 
+  // START LAURA CODE
   // Load device contacts automatically as soon as a destination is selected
   // Request contact permissions and fetch device contacts 
-  // Load device contacts automatically as soon as a destination is selected
   const loadDeviceContacts = async () => {
     try {
       let merged: ContactItem[] = [];
@@ -364,7 +364,7 @@ return () => {
       console.warn('Error loading contacts:', err);
     }
   };
-
+  // END LAURA CODE
 
   // Fetch predicted destinations from Google Places Autocomplete
   const fetchPredictions = async (input: string) => {
@@ -373,10 +373,10 @@ return () => {
       return;
     }
     const apiKey = GOOGLE_API_KEY;
-    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}`;
+    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}`; // Used in index.ts when sending link via. SMS text.
     const res = await fetch(url);
     const data = await res.json();
-    console.log('Places:', data.status, data.error_message, 'key set:', !!GOOGLE_API_KEY);
+    console.log('Places:', data.status, data.error_message, 'key set:', !!GOOGLE_API_KEY); // Testing
     setPredictions(data.status === 'OK' ? data.predictions : []);
   };
 
@@ -846,25 +846,6 @@ const getDirections = async (
                 </IonInput>
               </div>
 
-              <button
-                onClick={() => setShowManualAlert(true)}
-                style={{ ...chip(false), width: '100%', marginTop: 8, padding: '10px 14px' }}
-              >
-                <IonIcon icon={personAddOutline} />Add someone manually
-              </button>
-              <IonAlert
-                isOpen={showManualAlert}
-                onDidDismiss={() => setShowManualAlert(false)}
-                header="Add Contact"
-                inputs={[
-                  { name: 'contactName', type: 'text', placeholder: 'Name (e.g. John Doe)' },
-                  { name: 'contactPhone', type: 'tel', placeholder: 'Phone (978181290)' },
-                ]}
-                buttons={[
-                  { text: 'Cancel', role: 'cancel' },
-                  { text: 'Add', handler: (data: any) => handleAddManualContact(data.contactName, data.contactPhone) },
-                ]}
-              />
               <IonList
                 style={{
                   width: '100%',
@@ -904,6 +885,27 @@ const getDirections = async (
                   ))
                 )}
               </IonList>
+
+                            <button
+                onClick={() => setShowManualAlert(true)}
+                style={{ ...chip(false), width: '100%', marginTop: 8, padding: '10px 14px' }}
+              >
+                <IonIcon icon={personAddOutline} />Add someone manually
+              </button>
+              <IonAlert
+                isOpen={showManualAlert}
+                onDidDismiss={() => setShowManualAlert(false)}
+                header="Add Contact"
+                inputs={[
+                  { name: 'contactName', type: 'text', placeholder: 'Name (e.g. John Doe)' },
+                  { name: 'contactPhone', type: 'tel', placeholder: 'Phone (978181290)' },
+                ]}
+                buttons={[
+                  { text: 'Cancel', role: 'cancel' },
+                  { text: 'Add', handler: (data: any) => handleAddManualContact(data.contactName, data.contactPhone) },
+                ]}
+              />
+              
               {/* Favorites and Emergency shortcuts */}
               <div style={{ display: 'flex', gap: 10, marginTop: 12, marginBottom: 8 }}>
 

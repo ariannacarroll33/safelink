@@ -129,9 +129,9 @@ const toggleAlarm = () => {
   Press for Emergency
 </h1>
 <div className="sos-box-container">
-    <p className="body-medium style={{ color: 'var(--grey-600)' }" >
-      An alert will be activated and your emergency contacts will be sent a text with your location
-    </p>
+<p className="body-medium" style={{ color: 'var(--grey-600)', textAlign: 'center' }}>
+  An alert will be activated and your emergency contacts will be sent a text with your location
+</p>
     <IonButton
       className={isAlarmActive ? 'sos-button-on' : 'sos-button-off'}
       onClick={toggleAlarm}>
