@@ -15,6 +15,7 @@ import { notificationsOutline, searchOutline, star, starOutline, alertCircle, al
 import Arrivedimage from '../assets/Walkthrough-Page/Arrivedimage.png';
 import toastIcon from '../assets/toast-icon.svg';
 
+const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
 // FIREBASE INTEGRATION
 import { auth, db } from '../services/firebaseConfig';
@@ -371,10 +372,11 @@ return () => {
       setPredictions([]);
       return;
     }
-    const apiKey = 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI';
+    const apiKey = GOOGLE_API_KEY;
     const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}`;
     const res = await fetch(url);
     const data = await res.json();
+    console.log('Places:', data.status, data.error_message, 'key set:', !!GOOGLE_API_KEY);
     setPredictions(data.status === 'OK' ? data.predictions : []);
   };
 
@@ -427,7 +429,7 @@ return () => {
     const newMap = await GoogleMap.create({
       id: 'trip-map',
       element: mapElement,
-      apiKey: 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI',
+      apiKey: GOOGLE_API_KEY,
       config: {
         center: {
           lat: currentPosition.coords.latitude,
@@ -694,7 +696,7 @@ const getDirections = async (
   destination: string,
   mode: TransportMode
 ) => {
-  const apiKey = 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI';
+  const apiKey = GOOGLE_API_KEY;
   const originStr = `${origin.lat},${origin.lng}`;
   const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${encodeURIComponent(destination)}&mode=${mode}&key=${apiKey}`;
 
