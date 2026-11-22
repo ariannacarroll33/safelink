@@ -36,7 +36,6 @@ const Onboarding4: React.FC = () => {
           <div style={dotsContainerStyle}>
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
-            <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
             <span style={{ ...dotStyle, backgroundColor: '#E6A937' }} />
           </div>
 

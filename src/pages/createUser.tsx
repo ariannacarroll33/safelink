@@ -279,7 +279,7 @@ const CreateUser: React.FC = () => {
                     setName(e.detail.value || '');
                     if(errors.name) setErrors({...errors, name: false});
                   }}
-                  placeholder="e.g. Betty Higgs"
+                  placeholder="e.g. Jane"
                 />
               </IonItem>
             </div>
@@ -289,13 +289,14 @@ const CreateUser: React.FC = () => {
             <div style={labelStyle}>Username <span style={{ color: '#E6A937' }}>*</span></div>
             <div style={getBoxStyle('username')}>
               <IonItem lines="none" style={itemStyle}>
+                <IonIcon slot="start" icon={personAddOutline} style={{ color: '#999' }} />
                 <IonInput
                   value={username}
                   onIonInput={(e) => {
                     setUsername(e.detail.value || '');
                     if(errors.username) setErrors({...errors, username: false});
                   }}
-                  placeholder="@userexample"
+                  placeholder="eg. Jane123"
                 />
               </IonItem>
             </div>
@@ -354,7 +355,7 @@ const CreateUser: React.FC = () => {
                       setPhone(e.detail.value || '');
                       if(errors.phone) setErrors({...errors, phone: false});
                     }}
-                    placeholder="600 000 000" 
+                    placeholder="87 123 4567" 
                   />
                 </IonItem>
               </div>

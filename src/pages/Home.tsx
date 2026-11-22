@@ -15,6 +15,7 @@ import { notificationsOutline, searchOutline, star, starOutline, alertCircle, al
 import Arrivedimage from '../assets/Walkthrough-Page/Arrivedimage.png';
 import toastIcon from '../assets/toast-icon.svg';
 
+const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
 // FIREBASE INTEGRATION
 import { auth, db } from '../services/firebaseConfig';
@@ -265,7 +266,7 @@ const HomePage = () => {
   // When status traveling. If the map is not created, create it.  
   useEffect(() => { 
     if (tripStatus === 'traveling' && mapRef.current) {  
-      const newTripRef = doc(collection(db, 'trips')); 
+      const newTripRef = doc(collection(db, 'trips'));  // New trip document in Firestore
       tripDocRef.current = newTripRef; // Store trip for later 
       createMap().catch((e) => console.error('createMap failed:', e));
     } 
@@ -273,11 +274,11 @@ const HomePage = () => {
     // Stops watching the position when the component unmounts or when tripStatus changes. 
 return () => { 
   if (watchIdRef.current) { 
-    BackgroundGeolocation.removeWatcher({ id: watchIdRef.current });
+    BackgroundGeolocation.removeWatcher({ id: watchIdRef.current }); 
     watchIdRef.current = null; 
   } 
 
-      if (googleMapRef.current) { // destroys code each time at end. Bug which made user close app.
+      if (googleMapRef.current) { // Destroys code each time at end. Bug which made user close app.
         googleMapRef.current.destroy().catch((e) => console.warn('Map destroy failed:', e)); 
         googleMapRef.current = null;
       }
@@ -291,9 +292,9 @@ return () => {
     }
   }, [isDestinationSelected]);
 
+  // START LAURA CODE
   // Load device contacts automatically as soon as a destination is selected
   // Request contact permissions and fetch device contacts 
-  // Load device contacts automatically as soon as a destination is selected
   const loadDeviceContacts = async () => {
     try {
       let merged: ContactItem[] = [];
@@ -360,7 +361,7 @@ return () => {
       console.warn('Error loading contacts:', err);
     }
   };
-
+  // END LAURA CODE
 
   // Fetch predicted destinations from Google Places Autocomplete
   const fetchPredictions = async (input: string) => {
@@ -368,10 +369,11 @@ return () => {
       setPredictions([]);
       return;
     }
-    const apiKey = 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI';
-    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}`;
+    const apiKey = GOOGLE_API_KEY;
+    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}`; // Used in index.ts when sending link via. SMS text.
     const res = await fetch(url);
     const data = await res.json();
+    console.log('Places:', data.status, data.error_message, 'key set:', !!GOOGLE_API_KEY); // Testing
     setPredictions(data.status === 'OK' ? data.predictions : []);
   };
 
@@ -424,7 +426,7 @@ return () => {
     const newMap = await GoogleMap.create({
       id: 'trip-map',
       element: mapElement,
-      apiKey: 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI',
+      apiKey: GOOGLE_API_KEY,
       config: {
         center: {
           lat: currentPosition.coords.latitude,
@@ -680,7 +682,7 @@ const getDirections = async (
   destination: string,
   mode: TransportMode
 ) => {
-  const apiKey = 'AIzaSyD-tOmqP-EHhjX4FU-a4ddBK1BCiFk5ZgI';
+  const apiKey = GOOGLE_API_KEY;
   const originStr = `${origin.lat},${origin.lng}`;
   const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${encodeURIComponent(destination)}&mode=${mode}&key=${apiKey}`;
 
@@ -887,29 +889,39 @@ const getDirections = async (
               )}
             </IonList>
               {/* Emergency shortcuts */}
-            <div style={{ display: 'flex', width: '100%', marginTop: 12, marginBottom: 8 }}>
-              <button
-                type="button"
-                onClick={() => handleShortcut('emergency')}
-                style={{
-                  ...shortcutButton(panel === 'emergency', '#D9534F', '#FDE8E7'),
-                  width: '100%',
-                }}
-              >
-                <div
-                  style={{width: 34, height: 34, borderRadius: '50%', background: '#FDE8E7',display: 'flex',alignItems: 'center',justifyContent: 'center',flexShrink: 0, }} >
-                  <IonIcon icon={alertCircle} style={{ color: '#D9534F', fontSize: 18 }} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: '#7A4510' }}>Emergency</span>
-                  <span style={{ fontSize: 11, color: '#9A7B55' }}>
-                    {emergencyContacts.length === 0
-                      ? 'None yet'
-                      : `${emergencyContacts.filter((c) => c.selected).length}/${emergencyContacts.length} selected`}
-                  </span>
-                </div>
-              </button>
-            </div>
+              <div style={{ display: 'flex', width: '100%', marginTop: 12, marginBottom: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => handleShortcut('emergency')}
+                  style={{
+                    ...shortcutButton(panel === 'emergency', '#D9534F', '#FDE8E7'),
+                    width: '100%',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: '50%',
+                      background: '#FDE8E7',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <IonIcon icon={alertCircle} style={{ color: '#D9534F', fontSize: 18 }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: '#7A4510' }}>Emergency</span>
+                    <span style={{ fontSize: 11, color: '#9A7B55' }}>
+                      {emergencyContacts.length === 0
+                        ? 'None yet'
+                        : `${emergencyContacts.filter((c) => c.selected).length}/${emergencyContacts.length} selected`}
+                    </span>
+                  </div>
+                </button>
+              </div>
 
               {selectedList.length > 0 && (
                 <div style={{ fontSize: 12, color: 'var(--grey-600)', marginTop: 4, lineHeight: 1.4 }}>

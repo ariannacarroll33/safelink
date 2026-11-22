@@ -2,14 +2,13 @@ import React from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { IonApp, IonRouterOutlet, setupIonicReact, IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { homeOutline, linkOutline, ellipsisHorizontalOutline, alertCircleOutline } from 'ionicons/icons';
+import { homeOutline, personOutline, alertCircleOutline } from 'ionicons/icons';
 
 // Actual existing pages
 import Home from './pages/Home';
 import CreateUser from './pages/createUser'; 
 import SOSPage from './pages/Maps';    // SOS page was meant to be Maps but changed.
 import YourLinkPage from './pages/YourLink'; 
-import MorePage from './pages/More';  
 import NotificationsPage from './pages/Notifications';
 import VerificationCode from './pages/verificationCode';
 import EmergencyContact from './pages/emergencyContact';
@@ -97,7 +96,6 @@ function App() {
                 </Route>
                 <Route path="/tabs/sos" render={() => <SOSPage />} exact={true} />
                 <Route path="/tabs/yourlink" render={() => <YourLinkPage />} exact={true} />
-                <Route path="/tabs/more" render={() => <MorePage />} exact={true} /> 
               </IonRouterOutlet>
 
               <IonTabBar slot="bottom">
@@ -112,13 +110,8 @@ function App() {
                 </IonTabButton>
 
                 <IonTabButton tab="yourlink" href="/tabs/yourlink"> 
-                  <IonIcon icon={linkOutline} />
-                  <IonLabel>Your Link</IonLabel>
-                </IonTabButton>
-
-                <IonTabButton tab="more" href="/tabs/more"> 
-                  <IonIcon icon={ellipsisHorizontalOutline} />
-                  <IonLabel>More</IonLabel>
+                  <IonIcon icon={personOutline} />
+                  <IonLabel>Profile</IonLabel>
                 </IonTabButton>
               </IonTabBar>
             </IonTabs>
@@ -133,9 +126,6 @@ function App() {
           </Route>
           <Route exact path="/yourlink">
             <Redirect to="/tabs/yourlink" />
-          </Route>
-          <Route exact path="/more">
-            <Redirect to="/tabs/more" />
           </Route>
 
         </IonRouterOutlet>
