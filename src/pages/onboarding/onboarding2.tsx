@@ -38,14 +38,12 @@ const Onboarding2: React.FC = () => {
           </div>
 
 
-          {/* Indicador de Páginas (Punto 2 Activo) */}
           <div style={dotsContainerStyle}>
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
             <span style={{ ...dotStyle, backgroundColor: '#E6A937' }} />
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
           </div>
 
-          {/* Bandeja inferior dorada idéntica a la foto */}
           <div style={bottomContainerStyle}>
             <button 
               onClick={() => history.push('/onboarding3')} 

@@ -38,14 +38,12 @@ const Onboarding3: React.FC = () => {
             <h2 style={titleStyle}>Text sent when you arrive home</h2>
           </div>
 
-          {/* Indicador de Páginas (Punto 3 Activo) */}
           <div style={dotsContainerStyle}>
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
             <span style={{ ...dotStyle, backgroundColor: '#E6A937' }} />
           </div>
 
-          {/* Bandeja inferior dorada idéntica a la foto */}
           <div style={bottomContainerStyle}>
             <button 
               onClick={() => history.push('/emergencyContact')}

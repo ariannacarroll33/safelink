@@ -82,7 +82,7 @@ const shortcutButton = (active: boolean, accent: string, tint: string): React.CS
 });
 
 // filtering and selecting people
-type Panel = 'favorites' | 'emergency' | 'all' | null;
+type Panel =  | 'emergency' | 'all' | null;
 
 const normalize = (s: string) =>
 s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -175,7 +175,7 @@ const HomePage = () => {
       setProfileImage(savedAvatar);
     }
 
-    const savedUserSession = localStorage.getItem('safelink_user');
+    const savedUserSession = localStorage.getItem('safelink_user'); // recogizes user and saves the session
     if (savedUserSession) {
       try {
         const parsed = JSON.parse(savedUserSession);
@@ -198,7 +198,6 @@ const HomePage = () => {
           if (userSnap.exists()) {
             const data = userSnap.data();
             if (data.name) setUserName(data.name);
-            // Always prefer app avatarUrl over Google Auth photoURL
             if (data.avatarUrl) {
               setProfileImage(data.avatarUrl);
               localStorage.setItem('avatarUrl', data.avatarUrl);
@@ -249,7 +248,7 @@ const HomePage = () => {
   useEffect(() => {
     fetchUserProfile();
 
-    const handleProfileUpdate = () => {
+    const handleProfileUpdate = () => { // uodate profile 
       fetchUserProfile();
     };
 
@@ -300,13 +299,13 @@ return () => {
     try {
       let merged: ContactItem[] = [];
 
-      // 1. Phone contacts (optional: skipped if permission is denied or in browser)
+      // 1. Phone contacts 
       try {
         const checkStatus = await Contacts.checkPermissions();
-        let granted = checkStatus.contacts === 'granted';
+        let granted = checkStatus.contacts === 'granted' || checkStatus.contacts === 'limited';
         if (!granted) {
-          const reqStatus = await Contacts.requestPermissions();
-          granted = reqStatus.contacts === 'granted';
+        const reqStatus = await Contacts.requestPermissions();
+        granted = reqStatus.contacts === 'granted' || reqStatus.contacts === 'limited'; // limited option for the ones who dont want to give full access
         }
 
         if (granted) {
@@ -318,7 +317,6 @@ return () => {
               displayName: c.name?.display || c.name?.given || 'Unknown Contact',
               phoneNumber: c.phones?.[0]?.number || '',
               selected: false,
-              isFavorite: false,
               isEmergency: false,
             }));
         }
@@ -343,7 +341,6 @@ return () => {
             phoneNumber: p.phoneNumber,
             selected: false,
             isEmergency: true,
-            isFavorite: !!p.favorite,
           });
         }
       });
@@ -521,17 +518,16 @@ const watchId = await BackgroundGeolocation.addWatcher(
     setPanel((current) => (current === p ? null : p));
     setSearchQuery('');
   };
-
-  const handleShortcut = (p: 'favorites' | 'emergency') => {
-    const flag = p === 'favorites' ? 'isFavorite' : 'isEmergency';
+// emergency contacts shortcut selection
+  const handleShortcut = (p: 'emergency') => {
     const opening = panel !== p;
     setContacts((prev) =>
-      prev.map((c) => (c[flag] ? { ...c, selected: opening } : c))
+      prev.map((c) => (c.isEmergency ? { ...c, selected: opening } : c))
     );
     openPanel(p);
   };
-
-  const toggleFlag = (contactId: string, flag: 'isFavorite' | 'isEmergency') => {
+  
+  const toggleFlag = (contactId: string, flag:  | 'isEmergency') => {
     setContacts((prev) =>
       prev.map((c) =>
         c.contactId === contactId ? { ...c, [flag]: !c[flag] } : c
@@ -542,14 +538,14 @@ const watchId = await BackgroundGeolocation.addWatcher(
   const handleAddManualContact = (name?: string, phone?: string) => {
   const cleanName = (name ?? '').trim();
 
-  // CHANGE: Added 'IE' (or 'ES') as default country so local numbers without '+' don't fail validation
+  // predefined irelands prefix 
   const parsed = parsePhoneNumberFromString((phone ?? '').trim(), 'IE'); 
 
   if (!cleanName || !parsed?.isValid()) {
     console.warn('Invalid phone number entered manually');
     return false;
   }
-  const cleanPhone = parsed.number; // Now it correctly formats to E.164 (e.g. +353...)
+  const cleanPhone = parsed.number; //formats +353...
 
   const key = phoneKey(cleanPhone);
   const existing = contacts.find((c) => phoneKey(c.phoneNumber) === key);
@@ -566,7 +562,6 @@ const watchId = await BackgroundGeolocation.addWatcher(
         displayName: cleanName,
         phoneNumber: cleanPhone,
         selected: true,
-        isFavorite: false,
         isEmergency: false,
       },
     ]);
@@ -594,12 +589,10 @@ const watchId = await BackgroundGeolocation.addWatcher(
     normalize(c.displayName ?? '').includes(normalize(searchQuery.trim()))
   );
 
-  // Contact bellow is Lauras code. Inially, she tried to do SMS Text, so possibly some old code is still here. However, Arianna not changing it, incase cause issues.
   // Travelling state set up.
   // (FIRESTORE TRIGGER FOR PUSH NOTIFICATION):Generate tracking link, open Web Share sheet if available, and transition to traveling state
   const visibleContacts = contacts
     .filter((c) => {
-      if (panel === 'favorites') return c.isFavorite;
       if (panel === 'emergency') return c.isEmergency;
       if (panel === 'all') {
         const q = normalize(searchQuery.trim());
@@ -621,7 +614,7 @@ const handleBeginTrip = async () => {
   transportModeRef.current = transportMode ?? 'walking';
   const selectedContacts = contacts.filter((c) => c.selected && c.phoneNumber);
   recipientPhonesRef.current = selectedContacts.map((c) => toE164(c.phoneNumber!));
-
+// see of we delete this or add the right link
   const tripId = tripDocRef.current?.id ?? Date.now().toString();
   const generatedLink = `https://yourdomain.com/track?tripId=${tripId}`;
   setShareableLink(generatedLink);
@@ -680,14 +673,7 @@ const handleCancelConfirm = () => {
   };
 
   // possibility to update
-  /*
-  {panel === 'all'
-    ? 'No contacts found.'
-    : panel === 'favorites'
-    ? 'No favorites yet. Add them in Your Link.'
-    : 'No emergency contacts yet. Add them in Your Link.'}
-  */
-
+ 
 
   // Arianna code again. 
   // Getting directions code. 
@@ -846,47 +832,7 @@ const getDirections = async (
                 </IonInput>
               </div>
 
-              <IonList
-                style={{
-                  width: '100%',
-                  maxHeight: '200px',
-                  overflowY: 'auto',
-                  background: 'transparent'
-                }}
-              >
-                {contactsToDisplay.length === 0 ? (
-                  <IonItem>
-                    <IonLabel style={{ textAlign: 'center', color: 'var(--grey-500)' }}>
-                      {panel === 'favorites'
-                        ? 'No favorites yet. Add them in Your Link.'
-                        : panel === 'emergency'
-                        ? 'No emergency contacts yet. Add them in Your Link.'
-                        : 'No contacts found'}
-                    </IonLabel>
-                  </IonItem>
-                ) : (
-                  contactsToDisplay.map((c) => (
-                    <IonItem key={c.contactId}>
-                      <IonLabel>
-                        <h2>{c.displayName}</h2>
-                        <p>{c.phoneNumber}</p>
-                      </IonLabel>
-
-                      <IonCheckbox
-                        slot="end"
-                        checked={c.selected}
-                        onIonChange={(e) => {
-                          if (e.detail.checked !== c.selected) {
-                            toggleContactSelection(c.contactId);
-                          }
-                        }}
-                      />
-                    </IonItem>
-                  ))
-                )}
-              </IonList>
-
-                            <button
+              <button
                 onClick={() => setShowManualAlert(true)}
                 style={{ ...chip(false), width: '100%', marginTop: 8, padding: '10px 14px' }}
               >
@@ -905,32 +851,65 @@ const getDirections = async (
                   { text: 'Add', handler: (data: any) => handleAddManualContact(data.contactName, data.contactPhone) },
                 ]}
               />
-              
-              {/* Favorites and Emergency shortcuts */}
-              <div style={{ display: 'flex', gap: 10, marginTop: 12, marginBottom: 8 }}>
+             <IonList
+              style={{
+                width: '100%',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                background: 'transparent'
+              }}
+            >
+              {contactsToDisplay.length === 0 ? (
+                <IonItem>
+                  <IonLabel style={{ textAlign: 'center', color: 'var(--grey-500)' }}>
+                    {panel === 'emergency'
+                      ? 'No emergency contacts yet. Add them in Your Link.'
+                      : 'No contacts found'}
+                  </IonLabel>
+                </IonItem>
+              ) : (
+                contactsToDisplay.map((c) => (
+                  <IonItem key={c.contactId}>
+                    <IonLabel>
+                      <h2>{c.displayName}</h2>
+                      <p>{c.phoneNumber}</p>
+                    </IonLabel>
 
+                    <IonCheckbox
+                      slot="end"
+                      checked={c.selected}
+                      onIonChange={(e) => {
+                        if (e.detail.checked !== c.selected) {
+                          toggleContactSelection(c.contactId);
+                        }
+                      }}
+                    />
+                  </IonItem>
+                ))
+              )}
+            </IonList>
+              {/* Emergency shortcuts */}
+              <div style={{ display: 'flex', width: '100%', marginTop: 12, marginBottom: 8 }}>
                 <button
-                  onClick={() => handleShortcut('favorites')}
-                  style={shortcutButton(panel === 'favorites', '#E5A63A', '#FFF4D6')}
-                >
-                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#FFF4D6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <IonIcon icon={star} style={{ color: '#E5A63A', fontSize: 18 }} />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-                    <span style={{ fontWeight: 700, fontSize: 14, color: '#7A4510' }}>Favorites</span>
-                    <span style={{ fontSize: 11, color: '#9A7B55' }}>
-                      {favoriteContacts.length === 0
-                        ? 'None yet'
-                        : `${favoriteContacts.filter((c) => c.selected).length}/${favoriteContacts.length} selected`}
-                    </span>
-                  </div>
-                </button>
-
-                <button
+                  type="button"
                   onClick={() => handleShortcut('emergency')}
-                  style={shortcutButton(panel === 'emergency', '#D9534F', '#FDE8E7')}
+                  style={{
+                    ...shortcutButton(panel === 'emergency', '#D9534F', '#FDE8E7'),
+                    width: '100%',
+                  }}
                 >
-                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#FDE8E7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: '50%',
+                      background: '#FDE8E7',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
                     <IonIcon icon={alertCircle} style={{ color: '#D9534F', fontSize: 18 }} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
@@ -942,7 +921,6 @@ const getDirections = async (
                     </span>
                   </div>
                 </button>
-
               </div>
 
               {selectedList.length > 0 && (
