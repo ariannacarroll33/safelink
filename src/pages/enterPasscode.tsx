@@ -1,13 +1,6 @@
+// THIS FEATURE IS NOT IN THE FINAL VERSION THIS WAS THE PASSCODE TO CANCEL THE EMERGENCY SOS BUTTON BY ACCIDENT
 import React, { useState, useRef } from 'react';
-import {
-  IonContent,
-  IonPage,
-  IonIcon,
-  IonToast,
-  IonHeader,
-  IonToolbar,
-  IonInput
-} from '@ionic/react';
+import {IonContent, IonPage, IonIcon,IonToast,IonHeader,IonToolbar,IonInput} from '@ionic/react';
 import { arrowBackOutline, pinOutline, lockClosedOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 

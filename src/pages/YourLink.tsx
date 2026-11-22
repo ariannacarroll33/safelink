@@ -41,10 +41,6 @@ const YourLinkPage = () => {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
 
-  const [isLive, setIsLive] = useState<boolean>(false);
-  const [userLocation, setUserLocation] = useState<string>('Location sharing disabled');
-  const [lastKnownLocation, setLastKnownLocation] = useState<string>('');
-
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
   const [showEditAlert, setShowEditAlert] = useState<boolean>(false);
@@ -116,12 +112,6 @@ const YourLinkPage = () => {
   useEffect(() => {
     loadUserData();
   }, []);
-
-  const toggleLiveStatus = () => {
-    setIsLive(!isLive);
-    setToastMessage(!isLive ? 'Live location enabled' : 'Location sharing paused');
-    setShowToast(true);
-  };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -210,15 +200,16 @@ const YourLinkPage = () => {
     try {
       setLoadingContacts(true);
 
-      let perm = await Contacts.checkPermissions();
-      if (perm.contacts !== 'granted') {
-        perm = await Contacts.requestPermissions();
-      }
-      if (perm.contacts !== 'granted') {
-        setToastMessage('Contacts Permission Denied. Enable it in your phone settings!');
-        setShowToast(true);
-        return;
-      }
+    let perm = await Contacts.checkPermissions();
+    if (perm.contacts !== 'granted' && perm.contacts !== 'limited') {
+    perm = await Contacts.requestPermissions();
+    }
+
+    if (perm.contacts !== 'granted' && perm.contacts !== 'limited') {
+    setToastMessage('Contacts Permission Denied. Enable it in your phone settings!');
+    setShowToast(true);
+    return;
+    }
 
       const { contacts } = await Contacts.getContacts({
         projection: { name: true, phones: true },
@@ -314,32 +305,6 @@ const YourLinkPage = () => {
     setToastMessage('Contact deleted');
     setShowToast(true);
   };
-
-  const handleToggleFavorite = async (contactId: string) => {
-    const currentFavoritesCount = emergencyContacts.filter(c => c.favorite).length;
-    const updatedList = emergencyContacts.map(c => {
-      if (c.contactId === contactId) {
-        const nextFavoriteState = !c.favorite;
-        if (nextFavoriteState && currentFavoritesCount >= 10) return c; 
-        return { ...c, favorite: nextFavoriteState };
-      }
-      return c;
-    });
-
-    await saveContactsToStorageAndFirebase(updatedList);
-    setToastMessage('Favorites updated');
-    setShowToast(true);
-  };
-
-  const favoriteContacts = emergencyContacts.filter(c => c.favorite);
-  const normalizedQuery = searchQuery.trim().toLowerCase();
-  const searchResults = normalizedQuery
-  ? emergencyContacts.filter(c =>
-      c.displayName.toLowerCase().includes(normalizedQuery) ||
-      (c.relation || '').toLowerCase().includes(normalizedQuery) ||
-      c.phoneNumber.replace(/\s+/g, '').includes(normalizedQuery.replace(/\s+/g, ''))
-    )
-  : [];
 
   return (
     <IonPage>
@@ -476,9 +441,7 @@ const YourLinkPage = () => {
                 
               emergencyContacts.map((contact) => (
                 <IonItem key={contact.contactId} style={{ '--background': '#f8f6f2', borderRadius: '12px', marginBottom: '8px' }}>
-                  <IonButton slot="start" fill="clear" onClick={() => handleToggleFavorite(contact.contactId)}>
-                    <IonIcon icon={contact.favorite ? star : starOutline} style={{ fontSize: '20px', color: contact.favorite ? '#ffc107' : '#ccc' }} />
-                  </IonButton>
+
                   <IonLabel>
                     <h3 style={{ fontWeight: '700', color: '#2c2117' }}>
                       {contact.displayName} {contact.favorite && <span style={{fontSize: '10px', background: '#ffc107', color: '#fff', padding: '2px 6px', borderRadius: '4px', marginLeft: '4px'}}>Fav</span>}
@@ -498,73 +461,7 @@ const YourLinkPage = () => {
             )}
           </IonList>
         </div>
-{/* FAVORITES CARD */}
-<div className="info-card" style={{ margin: '0 16px 24px', padding: '16px' }}>
-  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-    <IonIcon icon={star} style={{ fontSize: '20px', color: '#ffc107' }} />
-    <div>
-      <strong style={{ fontSize: '16px', color: '#633A0E', display: 'block' }}>Favorites</strong>
-      <span style={{ fontSize: '11px', color: '#7d7267' }}>{favoriteContacts.length}/10</span>
-    </div>
-  </div>
 
-  <IonSearchbar
-    value={searchQuery}
-    onIonInput={(e) => setSearchQuery(e.detail.value || '')}
-    onIonClear={() => setSearchQuery('')}
-    placeholder="Search your contacts"
-    debounce={150}
-    style={{ '--background': '#f8f6f2', '--border-radius': '12px', padding: 0, marginBottom: '8px' }}
-  />
-
-  <IonList lines="none" style={{ background: 'transparent' }}>
-    {normalizedQuery ? (
-      searchResults.length === 0 ? (
-        <p style={{ fontSize: '13px', color: '#7d7267', textAlign: 'center', margin: '8px 0' }}>
-          No contacts match "{searchQuery}".
-        </p>
-      ) : (
-        searchResults.map(contact => (
-          <IonItem key={contact.contactId} style={{ '--background': '#f8f6f2', borderRadius: '12px', marginBottom: '8px' }}>
-            <IonLabel>
-              <h3 style={{ fontWeight: '700', color: '#2c2117' }}>{contact.displayName}</h3>
-              <p style={{ color: '#7d7267', fontSize: '12px' }}>
-                {contact.relation ? `${contact.relation} • ` : ''}{contact.phoneNumber}
-              </p>
-            </IonLabel>
-            <IonButton slot="end" fill="clear" onClick={() => handleToggleFavorite(contact.contactId)}>
-              <IonIcon
-                icon={contact.favorite ? star : starOutline}
-                style={{ fontSize: '22px', color: contact.favorite ? '#ffc107' : '#ccc' }}
-              />
-            </IonButton>
-          </IonItem>
-        ))
-      )
-    ) : favoriteContacts.length === 0 ? (
-      <p style={{ fontSize: '13px', color: '#7d7267', textAlign: 'center', margin: '8px 0' }}>
-        No favorites yet. Search a contact above and tap the star.
-      </p>
-    ) : (
-      favoriteContacts.map(contact => (
-        <IonItem key={contact.contactId} style={{ '--background': '#f8f6f2', borderRadius: '12px', marginBottom: '8px' }}>
-          <IonLabel>
-            <h3 style={{ fontWeight: '700', color: '#2c2117' }}>{contact.displayName}</h3>
-            <p style={{ color: '#7d7267', fontSize: '12px' }}>
-              {contact.relation ? `${contact.relation} • ` : ''}{contact.phoneNumber}
-            </p>
-          </IonLabel>
-          <IonButton slot="end" fill="clear" href={`tel:${contact.phoneNumber}`}>
-            <IonIcon icon={callOutline} style={{ color: '#2e7d32' }} />
-          </IonButton>
-          <IonButton slot="end" fill="clear" onClick={() => handleToggleFavorite(contact.contactId)}>
-            <IonIcon icon={closeCircleOutline} style={{ color: '#999' }} />
-          </IonButton>
-        </IonItem>
-      ))
-    )}
-  </IonList>
-</div>
 
         <IonModal isOpen={showPickerModal} onDidDismiss={() => setShowPickerModal(false)}>
           <IonHeader>

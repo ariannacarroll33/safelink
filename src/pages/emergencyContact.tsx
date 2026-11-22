@@ -80,11 +80,14 @@ const EmergencyContact: React.FC = () => {
   const handleImportFromDevice = async () => {
     try {
       // Check and request permission on iOS
-      const permission = await Contacts.requestPermissions();
-      if (permission.contacts !== 'granted') {
-        setToastMessage('Contacts access permission was denied.');
-        setShowToast(true);
-        return;
+      let permission = await Contacts.checkPermissions();
+      if (permission.contacts !== 'granted' && permission.contacts !== 'limited') {
+      permission = await Contacts.requestPermissions();
+      }
+      if (permission.contacts !== 'granted' && permission.contacts !== 'limited') {
+      setToastMessage('Contacts access permission was denied.');
+      setShowToast(true);
+      return;
       }
 
       // Opens the native iOS Contact Picker
@@ -136,7 +139,7 @@ const EmergencyContact: React.FC = () => {
       }
     }
   };
-
+// in case you remove--> there's always like a toast with the coutnrycode
   const removeContact = (id: string) => {
     if (contacts.length === 1) {
       setContacts([{ id: '1', name: '', countryCode: '+353', phone: '' }]);
@@ -157,7 +160,7 @@ const EmergencyContact: React.FC = () => {
     setShowToast(true);
     return;
   }
-
+// finds person
   const mapped = contacts.map(c => ({
     contactId: `contact_${c.id}`,
     displayName: c.name.trim(),

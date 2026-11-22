@@ -157,7 +157,7 @@ const MorePage: React.FC = () => {
   // 3) touch a highlighted route--> asks for confirmation
   const handleTapJourney = (journey: Journey) => {
     if (!journey.sharedWith || journey.sharedWith.length === 0) {
-      // Ruta antigua sin contactos: primero hay que elegirlos
+      // past journey WITHOUT CONTACTS SELECTED, meaning the route is the same, but youre able to select other contatcs 
       setDraft(journey);
       setShowPicker(true);
       return;

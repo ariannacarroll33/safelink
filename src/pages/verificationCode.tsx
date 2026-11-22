@@ -1,15 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  IonContent,
-  IonPage,
-  IonInput,
-  IonButton,
-  IonIcon,
-  IonToast,
-  IonItem,
-  IonHeader,
-  IonToolbar
-} from '@ionic/react';
+import { IonContent,IonPage,IonInput,IonButton,IonIcon,IonToast,IonItem,IonHeader,IonToolbar} from '@ionic/react';
 import { arrowBackOutline, chatbubbleOutline, logoGoogle } from 'ionicons/icons';
 import { useHistory, useLocation } from 'react-router-dom';
 
@@ -56,7 +46,7 @@ const VerificationCode: React.FC = () => {
   const handleDigitChange = (value: string, index: number) => {
     const clean = value.replace(/\D/g, '');
 
-    // Si pegan o autocompletan el código entero
+    // copy paste the full code 
     if (clean.length > 1) {
       const filled = clean.slice(0, CODE_LENGTH).split('');
       setDigits([...filled, ...Array(CODE_LENGTH - filled.length).fill('')]);
@@ -126,8 +116,8 @@ const VerificationCode: React.FC = () => {
 
     try {
       setLoading(true);
-      setVerificationId(null); // descarta el ID del envío anterior
-      setDigits(Array(CODE_LENGTH).fill('')); // limpia los huecos
+      setVerificationId(null); // refreshes the new id each time 
+      setDigits(Array(CODE_LENGTH).fill('')); // cleans empty spaces
       console.log('Sending SMS to:', phone);
 
       const result: any = await FirebaseAuthentication.linkWithPhoneNumber({ phoneNumber: phone });
@@ -148,7 +138,7 @@ const VerificationCode: React.FC = () => {
     }
   };
 
-  // OPTION 1 (CONTINUED): VALIDATE SMS CODE
+  // VALIDATE SMS CODE
   const handleVerifyCode = async (e?: React.SyntheticEvent) => {
     e?.preventDefault();
 
@@ -171,7 +161,7 @@ const VerificationCode: React.FC = () => {
       console.log('Verifying with:', verificationId, verificationCode);
 
       try {
-        // Intento 1: método documentado para confirmar el código
+        // cinfirming the code 
         await FirebaseAuthentication.confirmVerificationCode({
           verificationId,
           verificationCode
@@ -179,7 +169,7 @@ const VerificationCode: React.FC = () => {
       } catch (firstError: any) {
         console.error('confirmVerificationCode failed:', JSON.stringify(firstError), firstError?.code, firstError?.message);
 
-        // Intento 2: vincular el teléfono pasando el código
+        // synch the code to the phonenumber entering it
         await FirebaseAuthentication.linkWithPhoneNumber({
           phoneNumber: phone,
           verificationId,
@@ -274,7 +264,7 @@ const VerificationCode: React.FC = () => {
           </p>
         </div>
 
-        {/* ================= SMS SECTION ================= */}
+        {/*  SMS SECTION  */}
         <div style={sectionBoxStyle}>
           <h3 onClick={() => setActiveMethod('sms')} style={{ ...sectionTitleStyle, cursor: 'pointer' }}>
             <IonIcon icon={chatbubbleOutline} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
@@ -344,7 +334,7 @@ const VerificationCode: React.FC = () => {
             </IonButton>
           )}
         </div>
-        {/* ================= VISUAL DIVIDER ================= */}
+        {/* VISUAL DIVIDER  */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -359,7 +349,7 @@ const VerificationCode: React.FC = () => {
           <span style={{ flex: 1, height: '1px', background: 'rgba(99, 58, 14, 0.2)', marginLeft: '10px' }}></span>
         </div>
 
-        {/* ================= GOOGLE SECTION ================= */}
+        {/*  GOOGLE SECTION  */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <button
             type="button"
@@ -392,7 +382,7 @@ const VerificationCode: React.FC = () => {
   );
 };
 
-/* 🎨 STYLES */
+/* STYLES */
 const contentBackgroundStyle = { '--background': '#FFEBB7' };
 const headerToolbarStyle = { '--background': '#E5A93C', '--border-width': '0' };
 const headerFlexContainer: React.CSSProperties = { height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' };

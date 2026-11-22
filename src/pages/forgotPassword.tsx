@@ -10,15 +10,14 @@ import {
 import { useHistory } from 'react-router-dom';
 import { arrowBackOutline, mailOutline, checkmarkCircleOutline } from 'ionicons/icons';
 
-// 1. IMPORTACIONES DIRECTAS DE FIREBASE
+// firebase imports 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 
 // Import your logo asset
 import logoGris from '../assets/gris-safelink.svg';
 
-// 2. CONFIGURACIÓN DE TU PROYECTO FIREBASE
-// (Reemplaza estos valores con los datos reales de tu Consola de Firebase)
+// configuration 
 const firebaseConfig = {
   apiKey: "AIzaSyB8NRMMMhl9AUoTcrK6mmFXzU4dYipN1Y4",
   authDomain: "safelink-2acc5.firebaseapp.com",
@@ -28,7 +27,7 @@ const firebaseConfig = {
   appId: "1:895007403296:web:c9daf9693e4ec6a03afb45"
 };
 
-// Inicialización segura de Firebase para evitar duplicados en desarrollo
+// no duplicates 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 
@@ -37,19 +36,19 @@ const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  // 3. FUNCIÓN DE ENVÍO DE CORREO REAL
+  // send email
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
-      // Firebase valida el correo y envía el link de recuperación automáticamente
+      // Firebase valids the email and sends link to that email 
       await sendPasswordResetEmail(auth, email);
       console.log('Firebase password reset link dispatched to:', email);
       setIsSubmitted(true);
     } catch (error: any) {
       console.error('Error triggered during password reset request:', error);
       
-      // Control de errores de Firebase traducidos a alertas claras
+      // if there are errors 
       if (error.code === 'auth/user-not-found') {
         alert('This email address is not registered with SafeLink.');
       } else if (error.code === 'auth/invalid-email') {

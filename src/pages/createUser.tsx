@@ -5,11 +5,12 @@ import {personAddOutline,mailOutline,lockClosedOutline,eyeOutline,eyeOffOutline,
 
 import { useHistory } from 'react-router-dom';
 
-// FIREBASE INTEGRATION (Añadido doc y setDoc de Firestore)
+// FIREBASE INTEGRATION 
 import { auth, db } from '../services/firebaseConfig';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 
+// + number countries + their flag 
 const COUNTRIES = [
   { code: '+49', name: 'Germany', flag: '🇩🇪' },
   { code: '+54', name: 'Argentina', flag: '🇦🇷' },
@@ -49,7 +50,7 @@ const COUNTRIES = [
 
 const CreateUser: React.FC = () => {
   const history = useHistory();
-
+// profile info: name, user, email, country-prefix, phonenumber, password and confirm passw.)
   const [name, setName] = useState<string>('');
   const [username, setUsername] = useState<string>('');
   const [email, setEmail] = useState<string>('');
@@ -65,11 +66,11 @@ const CreateUser: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [errors, setErrors] = useState<{ [key: string]: boolean }>({});
-
+// requirements for the password: length, special caracter and a number
   const [hasEightChars, setHasEightChars] = useState<boolean>(false);
   const [hasNumber, setHasNumber] = useState<boolean>(false);
   const [hasSpecialChar, setHasSpecialChar] = useState<boolean>(false);
-
+// password requirements logic 
   useEffect(() => {
     setHasEightChars(password.length >= 8);
     setHasNumber(/\d/.test(password));
@@ -90,6 +91,7 @@ const CreateUser: React.FC = () => {
 
   const selectedCountry = COUNTRIES.find(c => c.code === countryPrefix) || COUNTRIES[17];
 
+  // sign up UID--> their id, name, email, phone, user and emergency contacts (saved in firestore as a UID card)
   const handleSignUp = (uid: string, fullPhone: string) => {
     const newUserData = {
       id: uid,
@@ -102,7 +104,7 @@ const CreateUser: React.FC = () => {
 
     localStorage.setItem('safelink_user', JSON.stringify(newUserData));
   };
-
+// sign up logic 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     const currentErrors: { [key: string]: boolean } = {};
@@ -161,11 +163,11 @@ const CreateUser: React.FC = () => {
         return;
       }
 
-      // 2. Create user account in Firebase Authentication
+      // create user account in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       firebaseUid = userCredential.user.uid;
 
-      // 3. GUARDAR PERFIL COMPLETO EN FIRESTORE (Paso 1 Integrado)
+      // save complete profile in firebase
       await setDoc(doc(db, 'users', firebaseUid), {
         uid: firebaseUid,
         name: name.trim(),

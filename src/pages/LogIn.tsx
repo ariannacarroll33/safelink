@@ -15,8 +15,10 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
+//logo import
 import logoGris from '../assets/gris-safelink.svg';
 
+// firebase configuration 
 const firebaseConfig = {
   apiKey: "AIzaSyB8NRMMMhl9AUoTcrK6mmFXzU4dYipN1Y4",
   authDomain: "safelink-2acc5.firebaseapp.com",
@@ -40,12 +42,12 @@ const Login: React.FC = () => {
     e.preventDefault();
     
     try {
-      // 1. Authenticate with Firebase Auth
+      // Authenticate with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       console.log('Logged in successfully with Firebase:', user);
       
-      // 2. Fetch Extended User Profile from Firestore and store locally
+      // Fetch Extended User Profile from Firestore and store locally
       try {
         const userDocRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userDocRef);
@@ -66,7 +68,7 @@ const Login: React.FC = () => {
 
       setFailedAttempts(0);
       
-      // 3. Redirect directly to Home Tab
+      // Redirect directly to Home Tab
       history.push('/tabs/home'); 
 
     } catch (error: any) {
