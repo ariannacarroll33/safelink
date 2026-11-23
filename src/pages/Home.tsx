@@ -15,7 +15,7 @@ import { notificationsOutline, searchOutline, star, starOutline, alertCircle, al
 import Arrivedimage from '../assets/Walkthrough-Page/Arrivedimage.png';
 import toastIcon from '../assets/toast-icon.svg';
 
-const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
+
 
 // FIREBASE INTEGRATION
 import { auth, db } from '../services/firebaseConfig';
@@ -25,11 +25,23 @@ import { doc, collection, getDoc, setDoc, updateDoc, DocumentReference, Document
 // Capacitor Contacts plugin import
 import { Contacts } from '@capacitor-community/contacts';
 
+
+
+
+
+// ============ SETUP: PLUGINS & CONSTANTS & TYPES (Arianna) ============
+const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation'); // Watch position. This plugin works with iOS native background location.
+const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
+
 // Using Type alias 
 type TripStatus = 'notstarted' | 'tripinformation' | 'confirm' | 'traveling' | 'arrived'; // States of trip
 type TransportMode = 'walking' | 'transit' | 'driving' | 'bicycling'; // Moed of transport.
 
-//START OF LAURA CODE
+
+
+
+
+// ============ CONTACTS (Laura) ============
 // Code on contacts.
 interface ContactItem {
   contactId: string;
@@ -86,9 +98,13 @@ type Panel =  | 'emergency' | 'all' | null;
 
 const normalize = (s: string) =>
 s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-// END OF LAURA CODE.
 
 
+
+
+
+
+// ============ DISTANCE, PHONE & CONSTANTS (Arianna) ============
 // Changing page when arrieve. Maths changing lat/long to meters. Retrieved from https://www.geeksforgeeks.org/dsa/haversine-formula-to-find-distance-between-two-points-on-a-sphere/
 const getDistanceMeters = (
   a: { lat: number; lng: number },
@@ -116,8 +132,14 @@ const TRANSPORT_LABELS: Record<TransportMode, string> = {
   bicycling: 'Cycle',
 };
 
-const CONFIRM_SECONDS = 15; // time before the trip starts automatically
+const CONFIRM_SECONDS = 15; // time before the trip starts automatically. Layra added this.
 // Const variables used to store values.
+
+
+
+
+
+// ============ VARIABLES AND REFS (Arianna) ============
 const HomePage = () => {
   const history = useHistory(); //History use to navigate to notifications page.  
   const [destinationInput, setDestinationInput] = useState(''); // Destination input state.
@@ -128,7 +150,6 @@ const HomePage = () => {
   const [showToast, setShowToast] = useState(false); // Toast popup for travelling and arrieved
   const [showArrivedToast, setShowArrivedToast] = useState(false); // Toasts used on travel / arrival
   const [showManualAlert, setShowManualAlert] = useState(false);
-  const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation'); // Watch position. This plugin works with iOS native background location.
   const contactsLoadedRef = useRef(false);
   const [countdown, setCountdown] = useState(CONFIRM_SECONDS);
   const handleBeginTripRef = useRef<() => void>(() => {}); // always points to the latest handleBeginTrip
@@ -166,7 +187,10 @@ const HomePage = () => {
   const routeIndexRef = useRef(0);
 
 
-  // START LAURA CODE
+
+
+
+  // ============ PROFILE  & CONTACTS (Laura) ============
   // Synchronized Profile Fetching --> basically that recoginzes the log in 
   const fetchUserProfile = () => {
     // 1. Prioritize LocalStorage uploaded avatar and saved user object
@@ -261,12 +285,16 @@ const HomePage = () => {
       if (authUnsubRef.current) authUnsubRef.current();
     };
   }, []);
-  // END LAURA CODE
+  
 
+
+
+
+// ============ TRIP &  MAP SETUP (Arianna) ============
   // When status traveling. If the map is not created, create it.  
   useEffect(() => { 
     if (tripStatus === 'traveling' && mapRef.current) {  
-      const newTripRef = doc(collection(db, 'trips'));  // New trip document in Firestore
+      const newTripRef = doc(collection(db, 'trips'));  // New trip document in firestore.
       tripDocRef.current = newTripRef; // Store trip for later 
       createMap().catch((e) => console.error('createMap failed:', e));
     } 
@@ -292,7 +320,12 @@ return () => {
     }
   }, [isDestinationSelected]);
 
-  // START LAURA CODE
+
+
+
+
+
+  // ============ CONTACTS (Laura) ============
   // Load device contacts automatically as soon as a destination is selected
   // Request contact permissions and fetch device contacts 
   const loadDeviceContacts = async () => {
@@ -361,8 +394,12 @@ return () => {
       console.warn('Error loading contacts:', err);
     }
   };
-  // END LAURA CODE
+  
 
+
+
+
+  // ============ PLACES (Arianna) ============
   // Fetch predicted destinations from Google Places Autocomplete
   const fetchPredictions = async (input: string) => {
     if (!input.trim()) {
@@ -385,9 +422,14 @@ return () => {
     debounceRef.current = setTimeout(() => fetchPredictions(value), 300);
   };
 
+
+
+
+
+  // ============ MAP (Arianna) ============
   const createMap = async () => { 
     const mapElement = mapRef.current;
-    if (!mapElement) return; //from null to current // made a little change because it was giving me problems because it was not an HTMLElement
+    if (!mapElement) return; //from null to current
 
     // Required for Capacitor Geolocator plugin. Asks permission to use location. Pop up. requestPermission.
     const permission = await Geolocation.requestPermissions();
@@ -403,7 +445,7 @@ return () => {
       maximumAge: 1000,
     });
 
-    // Storing trip in firestore. 
+    // Storing trip in firestore
     if (tripDocRef.current) { 
       await setDoc(tripDocRef.current, { 
         lat: currentPosition.coords.latitude, 
@@ -454,7 +496,7 @@ const watchId = await BackgroundGeolocation.addWatcher(
     if (err) { console.error('watcher error', err); return; }
     if (!location || !googleMapRef.current) return;
 
-        // Update Firestore with new position
+        // Update firestore with new position
         if (tripDocRef.current) {
           updateDoc(tripDocRef.current, {
             lat: location.latitude,
@@ -468,10 +510,15 @@ const watchId = await BackgroundGeolocation.addWatcher(
             lat: location.latitude,
             lng: location.longitude,
           },
-          zoom: 18,
+          zoom: 18, // Map zoom level. 
           animate: true,
         });
 
+
+
+
+
+        // ============ TRACKING (Arianna) ============
         const currentPos = { lat: location.latitude, lng: location.longitude };
         const path = routePathRef.current;
         let idx = routeIndexRef.current;
@@ -494,13 +541,13 @@ const watchId = await BackgroundGeolocation.addWatcher(
           })();
         }
 
-        // Check if user has reached destination 
+        // Check if user has reached destination - Arrived 
         if (destCoordsRef.current) {
           const dist = getDistanceMeters(
             { lat: location.latitude, lng: location.longitude },
             destCoordsRef.current
           );
-          if (dist < 25) { //changed from 50 to 25
+          if (dist < 40) { //changed from 50 to 25
             setTripStatus('arrived');
             setShowArrivedToast(true);
             if (tripDocRef.current) { 
@@ -513,6 +560,11 @@ const watchId = await BackgroundGeolocation.addWatcher(
     watchIdRef.current = watchId;
   }; //end of move
 
+
+
+
+
+  // ============ CONTACTS: SELECTION & FILTERING (Laura) ============
   // BEGIN TRIP (FIRESTORE TRIGGER FOR PUSH NOTIFICATION):Generate tracking link, open Web Share sheet if available, and transition to traveling state
   const openPanel = (p: Exclude<Panel, null>) => {
     setPanel((current) => (current === p ? null : p));
@@ -652,6 +704,12 @@ const handleCancelConfirm = () => {
     }
   }, [countdown, tripStatus]);
 
+
+
+
+
+
+  // ============ TRIP FLOW: BEGIN, CONFIRM, END (Arianna) ============
   // Arrived state setup
   const handleEndTrip = async () => {
     if (watchIdRef.current) {
@@ -672,10 +730,10 @@ const handleCancelConfirm = () => {
     setTripStatus('arrived');
   };
 
-  // possibility to update
- 
 
-  // Arianna code again. 
+
+
+  // ============ RETRIEVING DIRECTIONS (Arianna) ============
   // Getting directions code. 
 const getDirections = async (
   origin: { lat: number; lng: number },
@@ -731,16 +789,25 @@ const getDirections = async (
 
     setEta(etaText);
   };
-  // End of map
 
 
+
+
+
+
+  // ============ DERIVED VALUES (Arianna) ============
   const selectedContactName = contacts.find((c) => c.selected)?.displayName; // name which is selected. Used in Toast.
   const selectedList = contacts.filter((c) => c.selected);
   const favoriteContacts = contacts.filter((c) => c.isFavorite);
   const emergencyContacts = contacts.filter((c) => c.isEmergency);
 
+
+
+
+
+  // ============ RENDER (Arianna) ============
   return (
-    //Start navigation 
+    //Navigation 
     <IonPage>
       <IonHeader className="ion-no-border">
         <IonToolbar style={{ '--background': '#FFFFFF', '--border-width': '0' }}>
@@ -765,6 +832,13 @@ const getDirections = async (
         </IonToolbar>
       </IonHeader>
 
+
+
+
+      
+
+
+              {/* ===== SCREEN: START TRIP (Arianna)===== */}
       <IonContent className="page-background">
         {tripStatus === 'notstarted' && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -772,7 +846,12 @@ const getDirections = async (
           </div>
         )}
 
-        {/* CHANGE OF STATE */}
+
+
+
+
+
+        {/* ===== SCREEN: TRIP INFORMATION (Arianna) ===== */}
         {tripStatus === 'tripinformation' && (
           <div style={{ marginTop: 24, marginRight: 16, marginLeft: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div className="box-container">
@@ -990,7 +1069,13 @@ const getDirections = async (
             </IonButton>
           </div>
         )}
-{/* CHANGE OF STATE: confirmation summary */}
+
+
+
+
+
+
+{/* ===== SCREEN: TRIP PREVIEW (Laura) ===== */}
 {tripStatus === 'confirm' && (
   <div style={{ marginTop: 24, marginRight: 16, marginLeft: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
     <h2 style={{ color: '#633A0E', fontWeight: 800, fontSize: 20, margin: '0 0 4px', textAlign: 'center' }}>
@@ -1069,7 +1154,12 @@ const getDirections = async (
     </IonButton>
   </div>
 )}
-        {/* CHANGE OF STATE */}
+
+
+
+
+
+        {/* ===== SCREEN: TRAVELLING (Arianna) ===== */}
         {tripStatus === 'traveling' && (
           <div>
             <div
@@ -1106,7 +1196,7 @@ const getDirections = async (
               onClick={handleEndTrip}
               style={{ margin: '16px' }}
             >
-              End Trip
+              End Trip Now
             </IonButton>
 
             {shareableLink && (
@@ -1120,7 +1210,12 @@ const getDirections = async (
           </div>
         )}
 
-        {/* CHANGE OF STATE */}
+
+
+
+
+
+        {/* ===== SCREEN: ARRIVED (Arianna) ===== */}
         {tripStatus === 'arrived' && (
           <div
             style={{

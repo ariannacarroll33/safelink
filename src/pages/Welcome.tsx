@@ -65,6 +65,26 @@ const Welcome: React.FC = () => {
               I'm already part of Safelink! Log In
             </button>
 
+
+        {/* 
+        Buttons for skipping either straight to Walkthrough or the app. Uncomment if needed to testing.
+        <button
+          type="button"
+          onClick={() => history.push('/home')}
+          style={devSkipButtonStyle}
+        >
+          [DEV] Skip to app
+        </button>
+
+                <button
+          type="button"
+          onClick={() => history.push('/onboarding1')}
+          style={devSkipButtonStyle}
+        >
+          [DEV] Skip to Walkthrough
+        </button>
+        */}
+
           </div>
 
         </div>
