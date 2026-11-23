@@ -2,7 +2,7 @@ import React from 'react';
 import { IonContent, IonPage, IonHeader, IonToolbar } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { contentBackgroundStyle, headerToolbarStyle, headerContainerStyle, headerWelcomeTextStyle, mainContainerStyle, contentStyle, iconContainerStyle, titleStyle, descriptionStyle, dotsContainerStyle, dotStyle, bottomContainerStyle, actionButtonStyle } from './onboarding1';
-
+// redirection to homepage
 const Onboarding4: React.FC = () => {
   const history = useHistory();
 
@@ -20,7 +20,6 @@ const Onboarding4: React.FC = () => {
         <div style={mainContainerStyle}>
           
           <div style={contentStyle}>
-            {/* Icono S.O.S gigante adaptado */}
             <div style={iconContainerStyle}>
               <svg width="130" height="130" viewBox="0 0 24 24" fill="none" stroke="#633A0E" strokeWidth="1.2">
                 <circle cx="12" cy="12" r="10" strokeLinecap="round" />
@@ -34,14 +33,12 @@ const Onboarding4: React.FC = () => {
             </p>
           </div>
 
-          {/* Indicador de Páginas (Punto 4 Activo) */}
           <div style={dotsContainerStyle}>
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
             <span style={{ ...dotStyle, backgroundColor: '#FFFFFF' }} />
             <span style={{ ...dotStyle, backgroundColor: '#E6A937' }} />
           </div>
 
-          {/* Bandeja inferior dorada idéntica a la foto */}
           <div style={bottomContainerStyle}>
             <button 
               onClick={() => history.push('/enterPasscode')} 

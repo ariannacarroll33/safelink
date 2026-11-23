@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  IonContent,
-  IonPage,
-  IonButton
-} from '@ionic/react';
+import {IonContent,IonPage,IonButton} from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import '../theme/global.css';
 import '../theme/colours.css';
@@ -15,7 +11,7 @@ const Welcome: React.FC = () => {
   const history = useHistory();
   const [showButtons, setShowButtons] = useState(false);
 
-  // Los botones aparecen después de que termine la nueva animación larga (2.5s logo + margen)
+  // animation logo with effect--> means buttons appear after the logo effect (around 2-3s)
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowButtons(true);
@@ -177,16 +173,5 @@ const logInLinkStyle: React.CSSProperties = {
   padding: '10px'
 };
 
-const devSkipButtonStyle: React.CSSProperties = {
-  background: '#FF3B30',
-  border: 'none',
-  color: '#FFFFFF',
-  fontSize: '13px',
-  fontWeight: '700',
-  padding: '8px 16px',
-  borderRadius: '12px',
-  cursor: 'pointer',
-  marginTop: '10px'
-};
 
 export default Welcome;
