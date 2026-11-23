@@ -5,7 +5,10 @@ import twilio from 'twilio';
 
 
 
-// Start of Laura code. I believe this is related to notifications and not Twillo. Do not edit/ delete it. 
+
+
+// ============ LAURA TWILLO ATTTEMPT ============
+// Arianna believe this is related to notifications and not Twillo. Do not edit/ delete it. 
 admin.initializeApp();
 // EVENT 1: Notify contacts when a trip STARTS
 export const onTripCreated = onDocumentCreated('trips/{tripId}', async (event) => {
@@ -83,7 +86,11 @@ export const onTripStatusUpdated = onDocumentUpdated('trips/{tripId}', async (ev
 // End of Laura code.
 
 
-// Start of Arianna code on Twillo.
+
+
+
+
+// ============ ARIANNA TWILLO ATTEMPT (THIS ONE USED) ============
 const twilioAuthToken = defineSecret('TWILIO_AUTH_TOKEN'); // Stored in Firebase
 const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID; // Stored in functions/env 
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER; // Stored in functions/env 
